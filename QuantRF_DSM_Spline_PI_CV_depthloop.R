@@ -26,8 +26,8 @@ rm(required.packages, new.packages)
 rasterOptions(maxmemory = 1e+09, chunksize = 1e+08, memfrac = 0.9)
 
 ## Key Folder Locations
-predfolder <- "/media/tnaum/ped/SensitiveSoils/Data/models/NASIS_SCD_based/Sand_2D_NASIS_SSURGO_SCD"
-covfolder <- "/media/tnaum/ped/GIS_Archive/UCRB_Covariates"
+predfolder <- "/home/tnaum/data/DSM_DepthCompare"
+covfolder <- "/home/tnaum/OneDrive/USGS/BLM_projects/BLM_CO_ESGs/ESGs_UCRB/ESG_30mCovsInt"
 
 ######## Load shapefile (if needed) ##############
 setwd(predfolder)## FOlder with points

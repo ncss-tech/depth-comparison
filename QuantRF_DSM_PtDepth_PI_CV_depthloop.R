@@ -23,8 +23,8 @@ memory.limit(500000)
 rasterOptions(maxmemory = 1e+09, chunksize = 1e+08, memfrac = 0.9)
 
 ## Key Folder Locations
-predfolder <- "/home/tnaum/data/BLMsoils/Sand_2D_NASIS_SSURGO_SCD"
-covfolder <- "/home/tnaum/data/UCRB_Covariates"
+predfolder <- "/home/tnaum/data/DSM_DepthCompare"
+covfolder <- "/home/tnaum/OneDrive/USGS/BLM_projects/BLM_CO_ESGs/ESGs_UCRB/ESG_30mCovsInt"
 
 ######## Load shapefile (if needed) ##############
 setwd(predfolder)## FOlder with points
