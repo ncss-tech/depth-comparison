@@ -20,7 +20,7 @@ rm(required.packages, new.packages)
 ## Increase actuve memory useable by raster package: Windows only
 memory.limit(500000)
 ## Raster settings: adjust based on system
-rasterOptions(maxmemory = 1e+09, chunksize = 1e+08, memfrac = 0.8)
+rasterOptions(maxmemory = 1e+09, chunksize = 1e+08, memfrac = 0.9)
 
 ## Key Folder Locations
 predfolder <- "/home/tnaum/data/DSM_DepthCompare"
