@@ -32,7 +32,7 @@ load("LDM-compact_20191231.RData") # NASIS data
 load("NCSS_Lab_Data_Mart_20180914.RData") # Lab data?
 
 
-######## Get points for extraction if in table form ###########
+######## Get points for extraction if in table form ########
 setwd(predfolder)
 pts <- read.delim("NCSS17_PSDA_rkFrags_ttab.txt") # If in delimited file other than csv
 # pts <- readRDS("nasispts_gSSURGO18hor_ucrb_final.rds") # If in rds
