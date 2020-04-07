@@ -12,7 +12,7 @@
 
 # Workspace setup
 # Install packages if not already installed
-required.packages <- c("raster", "sp", "rgdal", "randomForest", "snow", "snowfall", "quantregForest","dplyr", "ggplot2","hexbin","parallel")# might need snowfall
+required.packages <- c("raster", "sp", "rgdal", "randomForest", "snow", "snowfall", "quantregForest","dplyr", "ggplot2","hexbin","parallel","aqp")# might need snowfall
 new.packages <- required.packages[!(required.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 lapply(required.packages, require, character.only=T)
@@ -25,6 +25,11 @@ rasterOptions(maxmemory = 1e+09, chunksize = 1e+08, memfrac = 0.9)
 ## Key Folder Locations
 predfolder <- "/home/tnaum/data/DSM_DepthCompare"
 covfolder <- "/home/tnaum/OneDrive/USGS/BLM_projects/BLM_CO_ESGs/ESGs_UCRB/ESG_30mCovsInt"
+
+## Load LDM data
+setwd(predfolder)
+load("LDM-compact_20191231.RData") # NASIS data
+load("NCSS_Lab_Data_Mart_20180914.RData") # Lab data?
 
 ######## Load shapefile (if needed) ##############
 setwd(predfolder)## FOlder with points
