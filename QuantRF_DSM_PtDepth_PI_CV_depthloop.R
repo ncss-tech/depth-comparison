@@ -31,14 +31,6 @@ setwd(predfolder)
 load("LDM-compact_20191231.RData") # NASIS data
 load("NCSS_Lab_Data_Mart_20180914.RData") # Lab data?
 
-######## Load shapefile (if needed) ##############
-setwd(predfolder)## FOlder with points
-shp.pts <-readOGR(".", "ec_12pre_ncss_LIMS_UPCO")
-point.proj <- projection(shp.pts)
-# If no prj file and you know proj, can specify by name
-temp.proj <- CRS("+proj=longlat +datum=WGS84")
-projection(shp.pts) <- temp.proj
-
 
 ######## Get points for extraction if in table form ###########
 setwd(predfolder)
