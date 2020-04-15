@@ -44,9 +44,9 @@ h <- merge(h,
            all.x = TRUE
            )
 h <- merge(h, 
-          l$Organic[
-            l$Organic$prep_code == "S",
-            c("labsampnum", "c_tot")],
+          l$Carbon_and_Extractions[
+            l$Carbon_and_Extractions$prep_code == "S",
+            c("labsampnum", "c_tot", "oc", "oc_code")],
           by = "labsampnum",
           all.x = TRUE
           )
@@ -71,7 +71,7 @@ site(spc) <- s
 spc_access <- spc
 
 
-# save(ldm_access, spc_access, file = "C:/Users/stephen.roecker/Nextcloud/data/NCSS_Lab_Data_Mart_09142018.RData")
+# save(ldm_access, spc_access, file = "C:/Users/stephen.roecker/Nextcloud/data/NCSS_Lab_Data_Mart_20180914.RData")
 # close and open 64-bit R version
 load(file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_20180914.RData")
 
