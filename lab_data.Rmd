@@ -15,16 +15,65 @@ editor_options:
 # only work in 32-bit R version
 
 library(RODBC)
+library(aqp)
 
+# KSSL access database can be downloaded from https://ncsslabdatamart.sc.egov.usda.gov/
 con <- odbcConnectAccess(access.file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_09142018.mdb")
 (access_names <- sqlTables(con))
 idx <- !grepl("MSys", access_names$TABLE_NAME)
 ldm_access <- lapply(access_names$TABLE_NAME[idx], function(x) sqlFetch(con , x, as.is = TRUE))
 names(ldm_access) <- access_names$TABLE_NAME[idx]
 odbcClose(con)
-# save(ldm_access, file = "C:/Users/stephen.roecker/Nextcloud/data/NCSS_Lab_Data_Mart_09142018.RData")
+
+l <- ldm_access
+
+
+# horizon table
+h <- merge(l$NCSS_Layer[c("labsampnum", "layer_key", "pedon_key", "hzn_desgn", "hzn_top", "hzn_bot")], 
+           l$PSDA_and_Rock_Fragments[
+             l$PSDA_and_Rock_Fragments$prep_code == "S", 
+             c("labsampnum", "tex_psda", "clay_tot_psa", "silt_tot_psa", "sand_tot_psa")],
+           by = "labsampnum",
+           all.x = TRUE
+           )
+h <- merge(h,
+           l$pH_and_Carbonates[
+             l$pH_and_Carbonates$prep_code == "S",
+             c("labsampnum", "ph_h2o")],
+           by = "labsampnum",
+           all.x = TRUE
+           )
+h <- merge(h, 
+          l$Organic[
+            l$Organic$prep_code == "S",
+            c("labsampnum", "c_tot")],
+          by = "labsampnum",
+          all.x = TRUE
+          )
+
+
+# site table
+s <- merge(l$NCSS_Pedon_Taxonomy[c("site_key", "pedlabsampnum", "pedoniid", "samp_name", "corr_name", "samp_classdate", "corr_classdate")],
+           l$NCSS_Site_Location[c("site_key", "siteiid", "latitude_decimal_degrees", "longitude_decimal_degrees", "county_code", "state_code")],
+           by = "site_key",
+           all.x = TRUE
+           )
+s$corr_classdate <- strptime(s$corr_classdate, format="%Y-%m-%d %H:%M:%S")
+s <- s[order(s$corr_classdate, s$samp_classdate, decreasing = TRUE), ]
+s <- s[complete.cases(s$latitude_decimal_degrees, s$longitude_decimal_degrees), ]
+s <- s[!duplicated(s$pedlabsampnum), ]
+
+
+# soil profile collection object
+spc <- h
+depths(spc) <- pedon_key ~ hzn_top + hzn_bot
+site(spc) <- s
+spc_access <- spc
+
+
+# save(ldm_access, spc_access, file = "C:/Users/stephen.roecker/Nextcloud/data/NCSS_Lab_Data_Mart_09142018.RData")
 # close and open 64-bit R version
-load(file = "C:/Users/stephen.roecker/Nextcloud/data/NCSS_Lab_Data_Mart_09142018.RData")
+load(file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_20180914.RData")
 
 ```
 
@@ -34,17 +83,22 @@ load(file = "C:/Users/stephen.roecker/Nextcloud/data/NCSS_Lab_Data_Mart_09142018
 
 ```{r sqlite}
 
+# https://new.cloudvault.usda.gov/index.php/s/eSoPYbWDBQNX2HP
+
 library(DBI)
 
-con <- dbConnect(RSQLite::SQLite(), "C:/Users/stephen.roecker/Nextcloud/data/ldm/LDM-compact_20191231.sqlite")
-# area <- read.csv("C:/Users/Stephen.Roecker/Nextcloud/data/ldm/lab_area.txt", stringsAsFactors = FALSE)
-# dbCreateTable(con, "area", area)
+con <- dbConnect(RSQLite::SQLite(), "C:/Users/stephen.roecker/Nextcloud/data/ldm/LDM-compact_20201006.sqlite")
+area <- read.csv("C:/Users/Stephen.Roecker/Nextcloud/data/ldm/lab_area.txt", stringsAsFactors = FALSE)
+dbCreateTable(con, "area", area)
 (ldm_names <- dbListTables(con))
 ldm <- lapply(ldm_names, function(x) dbReadTable(con , x))
 names(ldm) <- ldm_names
 dbDisconnect(con)
-# save(ldm, file = "C:/Users/steph/Nextcloud/data/ldm/LDM-compact_20191231.RData")
-load(file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/LDM-compact_20191231.RData")
+# save(ldm, file = "C:/Users/Stephen.Roecker/Nextcloud/data/ldm/LDM-compact_20200106.RData")
+load(file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/LDM-compact_20200106.RData")
+
+
+horizons <- 
 
 ```
 
@@ -53,6 +107,8 @@ load(file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/LDM-compact_20191231.RD
 # spatial
 
 ```{r spatial}
+
+library(sf)
 
 # upper colorado river basin
 ucrb <- read_sf(dsn = "C:/Users/Stephen.Roecker/Nextcloud/projects/2020_methodology_comparison", layer = "CO_River_watershed_Meade_alb")
@@ -70,6 +126,7 @@ bb <- st_bbox(ssa)
 
 
 # states
+library(USAboundaries)
 st <- us_states()
 st <- st_transform(st, 5070)
 
@@ -135,6 +192,15 @@ table(substr(ldm_s2$areasymbol[idx], 1, 2))[c("IA", "IL", "IN", "MI", "MN", "OH"
 
 test3 = subset(ldm_s2, !complete.cases(x, y) & complete.cases(utmeasting, utmnorthing, utmzone, horizdatnm))
 
+
+# ldm_access
+
+s_sf <- st_as_sf(s,
+                 coords = c("longitude_decimal_degrees", "latitude_decimal_degrees"),
+                 crs = 4326
+                 ) %>%
+  st_transform(5070)
+  
 ```
 
 
@@ -159,6 +225,8 @@ idx <- with(ldm_s2, !complete.cases(latitude_decimal_degrees, longitude_decimal_
 
 ```{r map}
 
+library(ggplot2)
+
 st <- subset(st, ! state_name %in% c("Alaska", "Hawaii"))
 bb <- st_bbox(ucrb)
 
@@ -175,5 +243,54 @@ ggplot() +
   # coord_sf(crs = "+init=epsg:5070") + 
   guides(fill = FALSE) +
   ggtitle("Location of Lab Data")
+
+```
+
+
+# CEC & ECEC for Alaska O Horizons
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+
+ldm <- ldm_access; rm(ldm_access)
+
+ak <- ldm$NCSS_Site_Location[c("site_key", "mlra_code", "state_code")] %>%
+  filter(state_code == "AK") %>%
+  # left_join(ldm$NCSS_Pedon_Taxonomy[c("site_key", "pedlabsampnum")], by = "site_key") %>%
+  left_join(ldm$NCSS_Layer[c("site_key", "labsampnum", "hzn_desgn")], by = "site_key") %>%
+  left_join(ldm$CEC_and_Bases, by = "labsampnum") %>%
+  filter(grepl("^O", hzn_desgn)) %>%
+  filter(!grepl("A|B|C", hzn_desgn))
+
+ak_cec <- ak %>%
+  group_by(mlra_code) %>%
+  summarize(cec_sum_min = min(cec_sum, na.rm = TRUE),
+            cec_sum_25p = quantile(cec_sum, probs = 0.25, na.rm = TRUE),
+            cec_sum_50p = quantile(cec_sum, probs = 0.5,  na.rm = TRUE),
+            cec_sum_75p = quantile(cec_sum, probs = 0.75, na.rm = TRUE),
+            cec_sum_max = max(cec_sum, na.rm = TRUE),
+            cec_sum_n   = sum(!is.na(cec_sum)),
+            ecec_min = min(ecec, na.rm = TRUE),
+            ecec_25p = quantile(ecec, probs = 0.25, na.rm = TRUE),
+            ecec_50p = quantile(ecec, probs = 0.5,  na.rm = TRUE),
+            ecec_75p = quantile(ecec, probs = 0.75, na.rm = TRUE),
+            ecec_max = max(ecec, na.rm = TRUE),
+            ecec_n   = sum(!is.na(ecec))
+            ) %>%
+  ungroup() %>%
+  filter(!is.na(cec_sum_50p) | !is.na(ecec_50p))
+ak_cec[-1] <- lapply(ak_cec[-1], function(x) round(x, 1))
+
+
+ak2 <- filter(ak, !is.na(cec_sum) | !is.na(ecec))
+ak_long <- reshape2::melt(ak2, id.vars = "mlra_code", measure.vars = c("cec_sum", "ecec"))
+ggplot(ak_long, aes(x = mlra_code, y = value)) +
+  geom_boxplot() +
+  facet_grid(~ variable, scales = "free_y") +
+  coord_flip() +
+  ggtitle("CEC and ECEC for Alaska O Horizons") +
+  xlab("MLRA")
 
 ```
