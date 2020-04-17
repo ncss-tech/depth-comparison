@@ -23,13 +23,13 @@ memory.limit(500000)
 rasterOptions(maxmemory = 1e+09, chunksize = 1e+08, memfrac = 0.9)
 
 ## Key Folder Locations
-predfolder <- "/home/tnaum/data/DSM_DepthCompare"
+predfolder <- "/home/tnaum/data/DSM_depthcompare"
 covfolder <- "/home/tnaum/OneDrive/USGS/BLM_projects/BLM_CO_ESGs/ESGs_UCRB/ESG_30mCovsInt"
 
 ## Load LDM data
 setwd(predfolder)
 load("LDM-compact_20191231.RData") # NASIS data
-load("NCSS_Lab_Data_Mart_20180914.RData") # Lab data?
+load("NCSS_Lab_Data_Mart_20180914_v2.RData") # Lab data?
 
 
 ######## Get points for extraction if in table form #######
