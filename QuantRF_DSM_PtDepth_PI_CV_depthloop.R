@@ -1,4 +1,3 @@
-#test
 ######################
 ## Predicting Soil Property Mapping Workflow
 ## Random Forest script that includes:
