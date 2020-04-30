@@ -53,7 +53,7 @@ h <- merge(h,
 
 
 # site table
-s <- merge(l$NCSS_Pedon_Taxonomy[c("site_key", "pedlabsampnum", "pedoniid", "samp_name", "corr_name", "samp_classdate", "corr_classdate")],
+s <- merge(l$NCSS_Pedon_Taxonomy[c("site_key", "pedon_key", "pedlabsampnum", "pedoniid", "samp_name", "corr_name", "samp_classdate", "corr_classdate")],
            l$NCSS_Site_Location[c("site_key", "siteiid", "latitude_decimal_degrees", "longitude_decimal_degrees", "county_code", "state_code")],
            by = "site_key",
            all.x = TRUE
@@ -71,7 +71,7 @@ site(spc) <- s
 spc_access <- spc
 
 
-# save(ldm_access, spc_access, file = "C:/Users/stephen.roecker/Nextcloud/data/NCSS_Lab_Data_Mart_20180914.RData")
+# save(ldm_access, spc_access, file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_20180914.RData")
 # close and open 64-bit R version
 load(file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_20180914.RData")
 
