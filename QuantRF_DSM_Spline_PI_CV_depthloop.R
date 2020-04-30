@@ -20,14 +20,38 @@ new.packages <- required.packages[!(required.packages %in% installed.packages()[
 if(length(new.packages)) install.packages(new.packages)
 lapply(required.packages, require, character.only=T)
 rm(required.packages, new.packages)
-## Increase actuve memory useable by raster package: Windows only
+## Increase active memory useable by raster package: Windows only
 # memory.limit(500000)
 ## Raster settings: adjust based on system
 rasterOptions(maxmemory = 1e+09, chunksize = 1e+08, memfrac = 0.9)
 
 ## Key Folder Locations
-predfolder <- "/media/tnaum/ped/SensitiveSoils/Data/models/NASIS_SCD_based/Sand_2D_NASIS_SSURGO_SCD"
-covfolder <- "/media/tnaum/ped/GIS_Archive/UCRB_Covariates"
+predfolder <- "E:/DSMFocus/Properties/Methodology/spline_predict"
+covfolder <- "E:/DSMFocus/Properties/Methodology/covariates"
+
+######## Load RData file with lab data
+load(file = "E:/DSMFocus/Properties/Methodology/R/NCSS_Lab_Data_Mart_20180914.RData")
+
+#####subset soil profile collection#####
+site_sub <- site(spc_access)[ ,c('pedlabsampnum','latitude_decimal_degrees','longitude_decimal_degrees')]
+str(site_sub)
+names(site_sub)
+
+horizon_sub <- horizons(spc_access)[ ,c('labsampnum','hzn_top','hzn_bot','clay_tot_psa','silt_tot_psa','sand_tot_psa','ph_h2o','oc')]
+str(horizon_sub)
+
+##remove NA data##
+site_data <- na.omit(site_sub)
+horz_data <- na.omit(horizon_sub)
+
+
+##combine data frames##
+site_horz <- left_join(site_sub, horizon_sub, by = c("pedlabsampnum" = "labsampnum"))
+
+
+
+
+
 
 ######## Load shapefile (if needed) ##############
 setwd(predfolder)## FOlder with points
