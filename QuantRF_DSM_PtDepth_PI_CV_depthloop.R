@@ -1,4 +1,3 @@
-#test
 ######################
 ## Predicting Soil Property Mapping Workflow
 ## Random Forest script that includes:
@@ -13,7 +12,7 @@
 
 # Workspace setup
 # Install packages if not already installed
-required.packages <- c("raster", "sp", "rgdal", "randomForest", "snow", "snowfall", "quantregForest","dplyr", "ggplot2","hexbin","parallel")# might need snowfall
+required.packages <- c("raster", "sp", "rgdal", "randomForest", "snow", "snowfall", "quantregForest","dplyr", "ggplot2","hexbin","parallel", "aqp")# might need snowfall
 new.packages <- required.packages[!(required.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 lapply(required.packages, require, character.only=T)
@@ -26,6 +25,65 @@ rasterOptions(maxmemory = 1e+09, chunksize = 1e+08, memfrac = 0.9)
 ## Key Folder Locations
 predfolder <- "/home/tnaum/data/BLMsoils/Sand_2D_NASIS_SSURGO_SCD"
 covfolder <- "/home/tnaum/data/UCRB_Covariates"
+#suz
+predfolder <- "D:/dsm/methodology/predict"
+covfolder <- "D:/dsm/methodology/covariates"
+
+##load Rdata file with lab data - soil profile collection
+load("D:/dsm/methodology/NCSS_Lab_Data_Mart_20180914.Rdata")
+
+##check it out
+spc_access
+str(spc_access)
+##omit NA values
+#clean_spc <- na.omit(spc_access)#this isn't ommiting NA in horizon level data ph, oc
+
+
+##subset site table information
+#site_sub <- site(clean_spc)[ ,c('pedlabsampnum','latitude_decimal_degrees','longitude_decimal_degrees')]
+#str(site_sub) 
+#names(site_sub)
+##remove NA values
+#site_data <- na.omit(site_sub)
+#str(site_data)
+##look at ped lab sample number
+#site_data$pedlabsampnum
+
+##subset site data and remove NA values
+site_sub <- na.omit(site(spc_access)[ ,c('pedlabsampnum','latitude_decimal_degrees','longitude_decimal_degrees')])
+str(site_sub)
+
+##subset horizon table information
+#hzn_sub <- horizons(clean_spc)[ ,c('labsampnum','hzn_top','hzn_bot','clay_tot_psa','silt_tot_psa','sand_tot_psa','ph_h2o','oc')]
+#str(hzn_sub)
+#names(hzn_sub)
+##remove NA values
+#hzn_data <- na.omit(hzn_sub)
+#str(hzn_data)
+##look at hzn lab sample number
+#hzn_data$labsampnum
+
+##subset horizon data and remove NA values
+hzn_sub <- na.omit(horizons(spc_access)[ ,c('labsampnum','hzn_top','hzn_bot','clay_tot_psa','silt_tot_psa','sand_tot_psa','ph_h2o','oc')])
+str(hzn_sub)
+
+##create spc with filtered profile and horizon data
+sub_spc <- spc_access[(site<-(site_sub)),(horizons<-(hzn_sub))]#this doesn't work
+
+sub_spc <- spc_access[(site_sub),(hzn_sub)]#this doesn't work same error as above
+
+##replace original horizon data with new filtered data
+horizons(spc_access) <- hzn_sub #this doesn't work 
+
+##replace site data with new filtered data
+site(spc_access) <- site_sub #this doesn't work
+
+#subsetProfiles(spc_access, s = 'pedlabsampnum = TRUE', h = 'labsampnum = TRUE')
+
+
+##join site and horizon data frames by lab sample number
+#data_join <- left_join(site_sub, hzn_sub, by = c("pedlabsampnum" = "labsampnum"))
+#str(data_join)
 
 ######## Load shapefile (if needed) ##############
 setwd(predfolder)## FOlder with points
