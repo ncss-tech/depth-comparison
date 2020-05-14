@@ -15,7 +15,7 @@
 # Workspace setup
 # Install packages if not already installed
 
-required.packages <- c("raster", "sp", "rgdal", "randomForest", "snow", "snowfall", "quantregForest","dplyr", "ggplot2","hexbin","plyr","aqp","GSIF","parallel")
+required.packages <- c("raster", "sp", "rgdal", "randomForest", "snow", "snowfall", "quantregForest","dplyr", "tidyr", "ggplot2","hexbin","plyr","aqp","GSIF","parallel")
 new.packages <- required.packages[!(required.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 lapply(required.packages, require, character.only=T)
@@ -33,50 +33,57 @@ covfolder <- "E:/DSMFocus/Properties/Methodology/covariates"
 load(file = "E:/DSMFocus/Properties/Methodology/R/NCSS_Lab_Data_Mart_20180914.RData")
 
 #####subset soil profile collection#####
-site_sub <- site(spc_access)[ ,c('pedlabsampnum','latitude_decimal_degrees','longitude_decimal_degrees')]
-str(site_sub)
-names(site_sub)
+site_sub <- site(spc_access)[ ,c('pedon_key','latitude_decimal_degrees','longitude_decimal_degrees')]
+site_subc <- na.omit(site_sub)
+str(site_subc)
 
-horizon_sub <- horizons(spc_access)[ ,c('labsampnum','hzn_top','hzn_bot','clay_tot_psa','silt_tot_psa','sand_tot_psa','ph_h2o','oc')]
+
+horizon_sub <- horizons(spc_access)[ ,c('pedon_key','labsampnum','hzn_top','hzn_bot','clay_tot_psa','silt_tot_psa','sand_tot_psa','ph_h2o','oc')]
 str(horizon_sub)
+summary(horizon_sub)
 
-##remove NA data##
-site_data <- na.omit(site_sub)
-horz_data <- na.omit(horizon_sub)
 
 
 ##combine data frames##
-site_horz <- left_join(site_sub, horizon_sub, by = c("pedlabsampnum" = "labsampnum"))
+horz_site <- merge(horizon_sub, site_subc, by = "pedon_key", all=TRUE)
+str(horz_site)
 
+pts <- horz_site %>% drop_na(latitude_decimal_degrees)
 
+#######works but not what we want 5/14
+#site_horz <- merge (spc_access@horizons, spc_access@site, by = "pedon_key", all=TRUE)
+#str(site_horz)
+#glimpse(site_horz)
 
-
-
-
+##don't do this block 5/14/20
 ######## Load shapefile (if needed) ##############
-setwd(predfolder)## FOlder with points
-shp.pts <-readOGR(".", "ec_12pre_ncss_LIMS_UPCO")
-point.proj <- projection(shp.pts)
+#setwd(predfolder)## FOlder with points
+#shp.pts <-readOGR(".", "ec_12pre_ncss_LIMS_UPCO")
+#point.proj <- projection(shp.pts)
 # If no prj file and you know proj, can specify by name
-temp.proj <- CRS("+proj=longlat +datum=WGS84")
-projection(shp.pts) <- temp.proj
+#temp.proj <- CRS("+proj=longlat +datum=WGS84")
+#projection(shp.pts) <- temp.proj
 
+##don't do this block 5/14/20
 ######## Get points for extraction if in table form ###########
-setwd(predfolder)
-pts <- read.delim("NCSS17_PSDA_rkFrags_ttab.txt") # If in delimited file other than csv
+#setwd(predfolder)
+p#ts <- read.delim("NCSS17_PSDA_rkFrags_ttab.txt") # If in delimited file other than csv
 # pts <- readRDS("nasispts_gSSURGO18hor_ucrb_final.rds") # If in rds
 ### Weed out points with imprecise coordinates (if needed) ###
-pts$latnchar <- nchar(abs(pts$ywgs84)) # update with correct field name
-pts$longnchar <- nchar(abs(pts$xwgs84))
+pts$latnchar <- nchar(abs(pts$latitude_decimal_degrees)) # update with correct field name
+pts$longnchar <- nchar(abs(pts$longitude_decimal_degrees))
 ptsc <- subset(pts, pts$latnchar > 5 & pts$longnchar > 6)
+
+
+
 ### Turn into spatial file
 shp.pts <- ptsc
-coordinates(shp.pts) <- ~ xwgs84 + ywgs84 # modify with field names in table
+coordinates(shp.pts) <- ~ longitude_decimal_degrees + latitude_decimal_degrees # modify with field names in table
 temp.proj <- CRS("+proj=longlat +datum=WGS84") ## specify projection if needed
 projection(shp.pts) <- temp.proj
 
 ######## Load map clip boundary (if needed) ###########
-setwd("/home/tnaum/Dropbox/USGS/BLM_projects/Utah_BLM_Salinity/Huc6_boundary")
+setwd("E:/DSMFocus/Properties/Methodology/boundary")
 polybound <- readOGR(".", "CO_River_watershed_Meade_alb")
 polybound <- spTransform(polybound, temp.proj)
 ## Now clip points and check with visualization
@@ -86,7 +93,7 @@ plot(shp.pts, add=TRUE)
 
 ######### Grid Prep #################
 ## Make list of grids
-setwd(covfolder)
+setwd("E:/DSMFocus/Properties/Methodology/covariates")
 cov.grids <- list.files(pattern=".tif$")
 ## If points need to be matched up to grids ###
 projgrid <- raster(cov.grids[1])
@@ -112,16 +119,16 @@ shp.pts$DID <- seq.int(nrow(shp.pts))
 pts.ext <- merge(as.data.frame(shp.pts),ov.lst, by="DID")
 
 ## Save points with extracted covariates (if desired)
-setwd(predfolder)
+setwd("E:/DSMFocus/Properties/Methodology/spline_predict")
 saveRDS(pts.ext, "pts_ext_covs.rds")
 
 ## Prep training data for Random Forest
-pts.ext$prop <- pts.ext$sandtotal_r ## UPDATE EVERY TIME with proper response field
-prop <- "sandtotal_r" ## Dependent variable
+scd.pts.ext$prop <- scd.pts.ext$clay_tot_psa ## UPDATE EVERY TIME with proper response field
+prop <- "clay_tot_psa" ## Dependent variable
 
 ## Create pedon ids and create location IDs
-scd.pts.ext$pid <- scd.pts.ext$pedon_key
-pts.ext$LocID <- paste(pts.ext$xwgs84, pts.ext$ywgs84, sep = "")
+pts.ext$pid <- pts.ext$pedon_key
+pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
 
 ## Combine datasets and remove NAs for spline
 ptspred.list <- gsub(".tif","", cov.grids)# Take .tif off of the grid list to just get the variable names
