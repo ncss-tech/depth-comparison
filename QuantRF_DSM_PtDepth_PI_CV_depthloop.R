@@ -55,13 +55,6 @@ str(pts)
 summary(pts)
 
 
-##subset elements from data frame and remove NA's; do for one property at a time 
-##propeties needed 'clay_tot_psa','silt_tot_psa','sand_tot_psa','ph_h2o','oc'
-#pts <- na.omit(site_hzn[ , c('latitude_decimal_degrees', 'longitude_decimal_degrees', 'labsampnum', 'hzn_top', 'hzn_bot', 'clay_tot_psa')])
-#str(pts)
-#summary(pts)
-
-
 ######## Load shapefile (if needed) ##############
 #setwd(predfolder)## FOlder with points
 #shp.pts <-readOGR(".", "ec_12pre_ncss_LIMS_UPCO")
