@@ -34,12 +34,9 @@ load(file = "E:/DSMFocus/Properties/Methodology/R/NCSS_Lab_Data_Mart_20180914.RD
 
 #####subset soil profile collection#####
 site_sub <- site(spc_access)[ ,c('pedon_key','latitude_decimal_degrees','longitude_decimal_degrees')]
-site_subc <- na.omit(site_sub)
-str(site_subc)
-
+summary(site_subc)
 
 horizon_sub <- horizons(spc_access)[ ,c('pedon_key','labsampnum','hzn_top','hzn_bot','clay_tot_psa','silt_tot_psa','sand_tot_psa','ph_h2o','oc')]
-str(horizon_sub)
 summary(horizon_sub)
 
 
@@ -47,8 +44,9 @@ summary(horizon_sub)
 ##combine data frames##
 horz_site <- merge(horizon_sub, site_subc, by = "pedon_key", all=TRUE)
 str(horz_site)
-
-pts <- horz_site %>% drop_na(latitude_decimal_degrees)
+summary(horz_site) #check for NAs
+pts <- horz_site %>% drop_na(latitude_decimal_degrees) #remove NA locations
+summary(pts)
 
 #######works but not what we want 5/14
 #site_horz <- merge (spc_access@horizons, spc_access@site, by = "pedon_key", all=TRUE)
@@ -73,7 +71,7 @@ p#ts <- read.delim("NCSS17_PSDA_rkFrags_ttab.txt") # If in delimited file other 
 pts$latnchar <- nchar(abs(pts$latitude_decimal_degrees)) # update with correct field name
 pts$longnchar <- nchar(abs(pts$longitude_decimal_degrees))
 ptsc <- subset(pts, pts$latnchar > 5 & pts$longnchar > 6)
-
+summary(ptsc)
 
 
 ### Turn into spatial file
@@ -123,7 +121,7 @@ setwd("E:/DSMFocus/Properties/Methodology/spline_predict")
 saveRDS(pts.ext, "pts_ext_covs.rds")
 
 ## Prep training data for Random Forest
-scd.pts.ext$prop <- scd.pts.ext$clay_tot_psa ## UPDATE EVERY TIME with proper response field
+pts.ext$prop <- pts.ext$clay_tot_psa ## UPDATE EVERY TIME with proper response field
 prop <- "clay_tot_psa" ## Dependent variable
 
 ## Create pedon ids and create location IDs
@@ -133,12 +131,12 @@ pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decim
 ## Combine datasets and remove NAs for spline
 ptspred.list <- gsub(".tif","", cov.grids)# Take .tif off of the grid list to just get the variable names
 ptspred.list <- c(ptspred.list,"prop","pid","top","bottom") #Add dependent variable
-pts.ext$top <- pts.ext$hzdept_r
-pts.ext$bottom <- pts.ext$hzdepb_r
+pts.ext$top <- pts.ext$hzn_top
+pts.ext$bottom <- pts.ext$hzn_bot
 pts.extc <- pts.ext[c(ptspred.list)]## Or create a specific list of dependent variable and covariate names to use 
 pts.ext.com <- na.omit(pts.extc)# Remove any record with NA's (in any column - be careful)
 pts.ext.com$hzid <- paste(pts.ext.com$pid,pts.ext.com$top,sep="_")
-## Run spline to create standard depth interval average
+pt## Run spline to create standard depth interval average
 pts.soilpr <- pts.ext.com
 # pts.soilpr <- ## NEED TO GET NAs out of prop field
 depths(pts.soilpr)<- pid ~ top + bottom # turns object into soil profile collection
@@ -149,7 +147,7 @@ pts.soilpr.spl <- mpspline(pts.soilpr, var.name="prop",vlow = min(pts.ext.com$pr
 ##### Loop to train and predict properties for all depths
 depths <- c("0-5 cm","5-15 cm","15-30 cm","30-60 cm","60-100 cm","100-150 cm")
 for(d in depths){
-pts.extcc <- data.frame(pid=pts.soilpr.sandspl$idcol, prop=pts.soilpr.spl$var.std[,d], stringsAsFactors = F)
+pts.extcc <- data.frame(pid=pts.soilpr.sandspl$idcol, prop=pts.soilpr.spl$var.std[,d], stringsAsFactors = F) #change object as needed
 dtop <- substr(d,0,1)
 pts.extcc$hzid <- paste(pts.extcc$pid,dtop,sep="_")
 pts.extcc <- base::merge(pts.extcc,pts.ext.com, by="hzid")
@@ -273,7 +271,7 @@ CV_factorRF <- function(g,pts.extcvm, formulaStringCVm){
   testdf <- subset(pts.extcvm, pts.extcvm$folds == g)
   xtrain.t <- as.matrix(traindf[c(gsub(".tif","", cov.grids))])
   ytrain.t <- c(as.matrix(traindf$prop_t))
-  rf.pcv <- quantregForest(x=xtrain.t, y=ytrain.t, importance=TRUE, ntree=120, keep.forest=TRUE,nthreads = max(cpus/10,1))
+  rf.pcv <- quantregForest(x=xtrain.t, y=ytrain.t, importance=TRUE, ntree=120, keep.forest=TRUE,nthreads = max(cpus/nfolds,1))
   rf.pcvc <- rf.pcv
   class(rf.pcvc) <- "randomForest"
   traindf$pcvpredpre <- predict(rf.pcvc, newdata=traindf)
@@ -289,7 +287,7 @@ CV_factorRF <- function(g,pts.extcvm, formulaStringCVm){
   return(testdf)
 }
 snowfall::sfInit(parallel=TRUE, cpus=nfolds)
-snowfall::sfExport("pts.extcvm","formulaStringCVm","CV_factorRF","cov.grids")
+snowfall::sfExport("pts.extcvm","formulaStringCVm","CV_factorRF","cov.grids","nfolds","cpus")
 snowfall::sfLibrary(randomForest)
 snowfall::sfLibrary(quantregForest)
 pts.extpcv <- snowfall::sfLapply(1:nfolds, function(g){CV_factorRF(g, pts.extcvm=pts.extcvm,formulaStringCVm=formulaStringCVm)})
