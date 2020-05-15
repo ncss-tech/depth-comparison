@@ -12,12 +12,12 @@
 
 # Workspace setup
 # Install packages if not already installed
-required.packages <- c("raster", "sp", "rgdal", "randomForest", "snow", "snowfall", "quantregForest","dplyr", "ggplot2","hexbin","parallel", "aqp")# might need snowfall
+required.packages <- c("raster", "sp", "rgdal", "randomForest", "snow", "snowfall", "quantregForest","dplyr", "ggplot2","hexbin","parallel", "aqp", "tidyr")# might need snowfall
 new.packages <- required.packages[!(required.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 lapply(required.packages, require, character.only=T)
 rm(required.packages, new.packages)
-## Increase actuve memory useable by raster package: Windows only
+## Increase active memory useable by raster package: Windows only
 memory.limit(500000)
 ## Raster settings: adjust based on system
 rasterOptions(maxmemory = 1e+09, chunksize = 1e+08, memfrac = 0.9)
@@ -35,82 +35,60 @@ load("D:/dsm/methodology/NCSS_Lab_Data_Mart_20180914.Rdata")
 ##check it out
 spc_access
 str(spc_access)
-##omit NA values
-#clean_spc <- na.omit(spc_access)#this isn't ommiting NA in horizon level data ph, oc
+
+sites <- site(spc_access)[ , c('pedon_key', 'pedlabsampnum', 'latitude_decimal_degrees', 'longitude_decimal_degrees')]
+str(sites)
+summary(sites)
+
+horizons <- horizons(spc_access)[ , c('pedon_key', 'labsampnum', 'hzn_top', 'hzn_bot', 'clay_tot_psa', 'silt_tot_psa','sand_tot_psa','ph_h2o','oc')]
+str(horizons)
+summary(horizons)
+
+##merge site and horizon data frames by pedon key
+site_hzn <- merge(sites, horizons, by = "pedon_key", all=TRUE)
+str(site_hzn)
+summary(site_hzn)
+
+##remove NA from location 
+pts <- site_hzn %>% drop_na(latitude_decimal_degrees, hzn_top, hzn_bot)
+str(pts)
+summary(pts)
 
 
-##subset site table information
-#site_sub <- site(clean_spc)[ ,c('pedlabsampnum','latitude_decimal_degrees','longitude_decimal_degrees')]
-#str(site_sub) 
-#names(site_sub)
-##remove NA values
-#site_data <- na.omit(site_sub)
-#str(site_data)
-##look at ped lab sample number
-#site_data$pedlabsampnum
+##subset elements from data frame and remove NA's; do for one property at a time 
+##propeties needed 'clay_tot_psa','silt_tot_psa','sand_tot_psa','ph_h2o','oc'
+#pts <- na.omit(site_hzn[ , c('latitude_decimal_degrees', 'longitude_decimal_degrees', 'labsampnum', 'hzn_top', 'hzn_bot', 'clay_tot_psa')])
+#str(pts)
+#summary(pts)
 
-##subset site data and remove NA values
-site_sub <- na.omit(site(spc_access)[ ,c('pedlabsampnum','latitude_decimal_degrees','longitude_decimal_degrees')])
-str(site_sub)
-
-##subset horizon table information
-#hzn_sub <- horizons(clean_spc)[ ,c('labsampnum','hzn_top','hzn_bot','clay_tot_psa','silt_tot_psa','sand_tot_psa','ph_h2o','oc')]
-#str(hzn_sub)
-#names(hzn_sub)
-##remove NA values
-#hzn_data <- na.omit(hzn_sub)
-#str(hzn_data)
-##look at hzn lab sample number
-#hzn_data$labsampnum
-
-##subset horizon data and remove NA values
-hzn_sub <- na.omit(horizons(spc_access)[ ,c('labsampnum','hzn_top','hzn_bot','clay_tot_psa','silt_tot_psa','sand_tot_psa','ph_h2o','oc')])
-str(hzn_sub)
-
-##create spc with filtered profile and horizon data
-sub_spc <- spc_access[(site<-(site_sub)),(horizons<-(hzn_sub))]#this doesn't work
-
-sub_spc <- spc_access[(site_sub),(hzn_sub)]#this doesn't work same error as above
-
-##replace original horizon data with new filtered data
-horizons(spc_access) <- hzn_sub #this doesn't work 
-
-##replace site data with new filtered data
-site(spc_access) <- site_sub #this doesn't work
-
-#subsetProfiles(spc_access, s = 'pedlabsampnum = TRUE', h = 'labsampnum = TRUE')
-
-
-##join site and horizon data frames by lab sample number
-#data_join <- left_join(site_sub, hzn_sub, by = c("pedlabsampnum" = "labsampnum"))
-#str(data_join)
 
 ######## Load shapefile (if needed) ##############
-setwd(predfolder)## FOlder with points
-shp.pts <-readOGR(".", "ec_12pre_ncss_LIMS_UPCO")
-point.proj <- projection(shp.pts)
+#setwd(predfolder)## FOlder with points
+#shp.pts <-readOGR(".", "ec_12pre_ncss_LIMS_UPCO")
+#point.proj <- projection(shp.pts)
 # If no prj file and you know proj, can specify by name
-temp.proj <- CRS("+proj=longlat +datum=WGS84")
-projection(shp.pts) <- temp.proj
+#temp.proj <- CRS("+proj=longlat +datum=WGS84")
+#projection(shp.pts) <- temp.proj
 
 
 ######## Get points for extraction if in table form ###########
-setwd(predfolder)
-pts <- read.delim("NCSS17_PSDA_rkFrags_ttab.txt") # If in delimited file other than csv
+#setwd(predfolder)
+#pts <- read.delim("NCSS17_PSDA_rkFrags_ttab.txt") # If in delimited file other than csv
 # pts <- readRDS("nasispts_gSSURGO18hor_ucrb_final.rds") # If in rds
 ### Weed out points with imprecise coordinates (if needed) ###
-pts$latnchar <- nchar(abs(pts$ywgs84)) # update with correct field name
-pts$longnchar <- nchar(abs(pts$xwgs84))
+pts$latnchar <- nchar(abs(pts$latitude_decimal_degrees)) # update with correct field name
+pts$longnchar <- nchar(abs(pts$longitude_decimal_degrees))
 ptsc <- subset(pts, pts$latnchar > 5 & pts$longnchar > 6)
+summary(ptsc)
 ### Turn into spatial file
 shp.pts <- ptsc
-coordinates(shp.pts) <- ~ xwgs84 + ywgs84 # modify with field names in table
+coordinates(shp.pts) <- ~ longitude_decimal_degrees + latitude_decimal_degrees # modify with field names in table
 temp.proj <- CRS("+proj=longlat +datum=WGS84") ## specify projection if needed
 projection(shp.pts) <- temp.proj
 
 
 ######## Load map clip boundary (if needed) ###########
-setwd("/home/tnaum/Dropbox/USGS/BLM_projects/Utah_BLM_Salinity/Huc6_boundary")
+setwd("D:/dsm/methodology/boundary")
 polybound <- readOGR(".", "CO_River_watershed_Meade_alb")
 polybound <- spTransform(polybound, temp.proj)
 ## Now clip points and check with visualization
@@ -122,6 +100,7 @@ plot(shp.pts, add=TRUE)
 ## Make list of grids
 setwd(covfolder)
 cov.grids <- list.files(pattern=".tif$")
+cov.grids
 ## If points need to be matched up to grids ###
 projgrid <- raster(cov.grids[1])
 cov.proj <- projection(projgrid)
@@ -144,22 +123,23 @@ names(ov.lst) = tools::file_path_sans_ext(basename(cov.grids))
 ov.lst$DID <- seq.int(nrow(ov.lst))
 shp.pts$DID <- seq.int(nrow(shp.pts))
 pts.ext <- merge(as.data.frame(shp.pts),ov.lst, by="DID")
+summary(pts.ext)
 
 ## Save points with extracted covariates (if desired)
 setwd(predfolder)
 saveRDS(pts.ext, "pts_ext_covs.rds")
 
 ## Prep training data for Random Forest
-pts.ext$prop <- pts.ext$sandtotal_r ## UPDATE EVERY TIME with proper response field
-prop <- "sandtotal_r" ## Dependent variable
+pts.ext$prop <- pts.ext$clay_tot_psa ## UPDATE EVERY TIME with proper response field
+prop <- "clay_tot_psa" ## Dependent variable
 
 ## Create location IDs for extra duplicate removal step
-pts.ext$LocID <- paste(pts.ext$xwgs84, pts.ext$ywgs84, sep = "")
+pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
 
 ##### Loop to train and predict properties for all depths
 depths <- c(0,5,15,30,60,100,150)
 for(d in depths){
-pts.extc <- subset(pts.ext, as.numeric(pts.ext$hzdept_r) <= d & as.numeric(pts.ext$hzdepb_r) > d) # subset to chosen depth
+pts.extc <- subset(pts.ext, as.numeric(pts.ext$hzn_top) <= d & as.numeric(pts.ext$hzn_bot) > d) # subset to chosen depth
 pedonLocations <- unique(pts.extc$LocID) # if length differs from # of rows in pts, there are duplicates
 pts.extc <- subset(pts.extc, !duplicated(pts.extc[c("LocID")])) #removes duplicates
 ptspred.list <- gsub(".tif","", cov.grids)# Take .tif off of the grid list to just get the variable names
@@ -173,6 +153,7 @@ ytrain <- c(as.matrix(pts.extcc[c("prop")]))
 varrange <- as.numeric(quantile(pts.extcc$prop, probs=c(0.975), na.rm=T)-quantile(pts.extcc$prop, probs=c(0.025),na.rm=T)) # For RPI
 
 ############### Build quantile Random Forest
+set.seed(915)
 Qsoiclass <- quantregForest(x=xtrain, y=ytrain, importance=TRUE, ntree=120, keep.forest=TRUE) # If dataset is ~>300: , nthreads = cpus)
 soiclass <- Qsoiclass
 class(soiclass) <- "randomForest"
@@ -279,7 +260,7 @@ CV_factorRF <- function(g,pts.extcvm, formulaStringCVm){
   testdf <- subset(pts.extcvm, pts.extcvm$folds == g)
   xtrain.t <- as.matrix(traindf[c(gsub(".tif","", cov.grids))])
   ytrain.t <- c(as.matrix(traindf$prop_t))
-  rf.pcv <- quantregForest(x=xtrain.t, y=ytrain.t, importance=TRUE, ntree=120, keep.forest=TRUE,nthreads = max(cpus/10,1))
+  rf.pcv <- quantregForest(x=xtrain.t, y=ytrain.t, importance=TRUE, ntree=120, keep.forest=TRUE,nthreads = max(cpus/nfolds,1))
   rf.pcvc <- rf.pcv
   class(rf.pcvc) <- "randomForest"
   traindf$pcvpredpre <- predict(rf.pcvc, newdata=traindf)
@@ -295,7 +276,7 @@ CV_factorRF <- function(g,pts.extcvm, formulaStringCVm){
   return(testdf)
 }
 snowfall::sfInit(parallel=TRUE, cpus=nfolds)
-snowfall::sfExport("pts.extcvm","formulaStringCVm","CV_factorRF","cov.grids")
+snowfall::sfExport("pts.extcvm","formulaStringCVm","CV_factorRF","cov.grids","cpus","nfolds")
 snowfall::sfLibrary(randomForest)
 snowfall::sfLibrary(quantregForest)
 pts.extpcv <- snowfall::sfLapply(1:nfolds, function(g){CV_factorRF(g, pts.extcvm=pts.extcvm,formulaStringCVm=formulaStringCVm)})
