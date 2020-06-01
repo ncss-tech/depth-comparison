@@ -86,6 +86,7 @@ polybound <- readOGR(".", "CO_River_watershed_Meade_alb")
 polybound <- spTransform(polybound, temp.proj)
 ## Now clip points and check with visualization
 shp.pts = shp.pts[polybound,]#clip by outer extent of all polybound features
+summary(shp.pts)
 plot(polybound)
 plot(shp.pts, add=TRUE)
 
@@ -130,7 +131,8 @@ prop <- "clay_tot_psa" ## Dependent variable
 pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
 
 ##### Loop to train and predict properties for all depths
-depths <- c(0,5,15,30,60,100,150)
+####depths <- c(0,5,15,30,60,100,150) 
+d <- 0
 for(d in depths){
 pts.extc <- subset(pts.ext, as.numeric(pts.ext$hzn_top) <= d & as.numeric(pts.ext$hzn_bot) > d) # subset to chosen depth
 pedonLocations <- unique(pts.extc$LocID) # if length differs from # of rows in pts, there are duplicates
@@ -225,7 +227,7 @@ PIrelwidth <- clusterR(s, overlay, args=list(fun=PIrelwidth.fn),progress = "text
 
 endCluster()
 ## Write new geotiff files
-setwd(predfolder)
+##setwd(predfolder)
 ## Untranformed code block
 writeRaster(predlm, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
 writeRaster(predl, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_l.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
@@ -258,8 +260,6 @@ CV_factorRF <- function(g,pts.extcvm, formulaStringCVm){
   class(rf.pcvc) <- "randomForest"
   traindf$pcvpredpre <- predict(rf.pcvc, newdata=traindf)
   testdf$pcvpredpre <- predict(rf.pcvc, newdata=testdf)
-  #traindf$pcvpredpre <- predict(rf.pcv, newdata=traindf, what=c(0.5)) ## If median is desired
-  #testdf$pcvpredpre <- predict(rf.pcv, newdata=testdf,, what=c(0.5)) ## If median is desired
   testdf$pcvpredpre.025 <- predict(rf.pcv, newdata=testdf, what=c(0.025))
   testdf$pcvpredpre.975 <- predict(rf.pcv, newdata=testdf, what=c(0.975))
   attach(traindf)
@@ -301,12 +301,12 @@ BTbias.abs.max <- max(abs(pts.extpcv$BTbias))
 BTbias.ave <- mean(pts.extpcv$BTbias)
 PICP <- sum(ifelse(pts.extpcv$prop_bt <= pts.extpcv$pcvpredpre.975_bt & pts.extpcv$prop_bt >= pts.extpcv$pcvpredpre.025_bt,1,0))/length(pts.extpcv[,1])
 ## Summarize RPI in full raster prediction using sample for speed (tested against full average)
-rpi_samp <- sampleRegular(relpi,size=200000,useGDAL=T)
+rpi_samp <- sampleRegular(PIrelwidth,size=200000,useGDAL=T)
 rpi_samp <- na.omit(rpi_samp)
 gRPI.ave <- mean(rpi_samp)
 gRPI.med <- median(rpi_samp)
 ## Create PCV table
-CVdf <- data.frame(cvp.RMSE, cvp.Rsquared, cvp.RMSE_bt, cvp.Rsquared_bt, n_scd,RPI.cvave,RPI.cvmed,gRPI.ave,gRPI.med,PICP,rel.abs.res.ave,rel.abs.res.med,BTbias.abs.max,BTbias.ave)
+CVdf <- data.frame(cvp.RMSE, cvp.Rsquared, cvp.RMSE_bt, cvp.Rsquared_bt,RPI.cvave,RPI.cvmed,gRPI.ave,gRPI.med,PICP,rel.abs.res.ave,rel.abs.res.med,BTbias.abs.max,BTbias.ave)
 names(CVdf) <- c("cvp.RMSE","cvp.Rsquared","cvp.RMSE_bt", "cvp.Rsquared_bt","RPI.CVave","RPI.CVmed","gRPI.ave","gRPI.med","PICP","rel.abs.res.ave","rel.abs.res.med","BTbias.abs.max","BTbias.ave")
 setwd(predfolder)
 write.table(CVdf, paste("PCVstats", prop, d, "cm_nasisSSURGO_ART_SG100.txt",sep="_"), sep = "\t", row.names = FALSE)
