@@ -73,7 +73,7 @@ spc_access <- spc
 
 # save(ldm_access, spc_access, file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_20180914.RData")
 # close and open 64-bit R version
-load(file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_20180914.RData")
+load(file = "C:/Users/steph/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_20180914.RData")
 
 ```
 
@@ -99,12 +99,12 @@ load(file = "C:/Users/steph/Nextcloud/data/ldm/LDM-compact_20200422.RData")
 
 
 # horizon table
-chem_vars <- c("labsampnum", "electrical_conductivity_satx", "ec_predict_one_to_two", "ph_h2o", "ph_h2o_method", "ph_saturated_paste", "sodium_absorption_ratio", "exchangeable_sodium")
+chem_vars <- c("labsampnum", "ec_predict_one_to_two", "ec_predict_one_to_two_method", "electrical_conductivity_satx", "electrical_cond_satx_method", "ph_h2o", "ph_h2o_method", "ph_saturated_paste", "exchangeable_sodium", "sodium_absorption_ratio", "total_estimated_salts_satx")
 phys_vars <- c("labsampnum", "texture_lab", "clay_total", "silt_total", "sand_total", "total_frag_wt_pct_gt_2_mm_ws", "bulk_density_third_bar")
 l_vars <- c("labsampnum", "layer_key", "pedon_key", "hzn_desgn", "hzn_top", "hzn_bot", "texture_description", "stratified_textures_flag")
 
 h <- merge(ldm$layer[l_vars],
-           ldm$physical[phys_vars],
+           ldm$physical[! duplicated(ldm$physical$labsampnum), phys_vars],
            by = "labsampnum",
            all.x = TRUE
            )
