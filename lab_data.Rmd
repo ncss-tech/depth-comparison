@@ -87,18 +87,62 @@ load(file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_2018
 
 library(DBI)
 
-con <- dbConnect(RSQLite::SQLite(), "C:/Users/stephen.roecker/Nextcloud/data/ldm/LDM-compact_20201006.sqlite")
-area <- read.csv("C:/Users/Stephen.Roecker/Nextcloud/data/ldm/lab_area.txt", stringsAsFactors = FALSE)
+con <- dbConnect(RSQLite::SQLite(), "C:/Users/steph/Nextcloud/data/ldm/LDM-compact_20200422.sqlite")
+area <- read.csv("C:/Users/steph/Nextcloud/data/ldm/lab_area.txt", stringsAsFactors = FALSE)
 dbCreateTable(con, "area", area)
 (ldm_names <- dbListTables(con))
 ldm <- lapply(ldm_names, function(x) dbReadTable(con , x))
 names(ldm) <- ldm_names
 dbDisconnect(con)
-# save(ldm, file = "C:/Users/Stephen.Roecker/Nextcloud/data/ldm/LDM-compact_20200106.RData")
-load(file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/LDM-compact_20200106.RData")
+# save(ldm, file = "C:/Users/steph/Nextcloud/data/ldm/LDM-compact_20200422.RData")
+load(file = "C:/Users/steph/Nextcloud/data/ldm/LDM-compact_20200422.RData")
 
 
-horizons <- 
+# horizon table
+chem_vars <- c("labsampnum", "electrical_conductivity_satx", "ec_predict_one_to_two", "ph_h2o", "ph_h2o_method", "ph_saturated_paste", "sodium_absorption_ratio", "exchangeable_sodium")
+phys_vars <- c("labsampnum", "texture_lab", "clay_total", "silt_total", "sand_total", "total_frag_wt_pct_gt_2_mm_ws", "bulk_density_third_bar")
+l_vars <- c("labsampnum", "layer_key", "pedon_key", "hzn_desgn", "hzn_top", "hzn_bot", "texture_description", "stratified_textures_flag")
+
+h <- merge(ldm$layer[l_vars],
+           ldm$physical[phys_vars],
+           by = "labsampnum",
+           all.x = TRUE
+           )
+h <- merge(h, 
+           ldm$chemical[chem_vars],
+           by = "labsampnum",
+           all.x = TRUE
+           )
+
+
+# site table
+ncss_vars <- c("site_key", "pedon_key", "pedlabsampnum", "pedoniid", "samp_name", "corr_name", "samp_classdate", "corr_classdate")
+site_vars <- c("site_key", "user_site_id", "latitude_std_decimal_degrees", "longitude_std_decimal_degrees")
+
+s <- merge(ldm$nasis_ncss[ncss_vars],
+           ldm$nasis_site[site_vars],
+           by = "site_key",
+           all.x = TRUE
+           )
+s <- within(s, {
+            samp_classdate = strptime(samp_classdate, format = "%Y-%m-%d %H:%M:%S")
+            corr_classdate = strptime(corr_classdate, format="%Y-%m-%d %H:%M:%S")
+            })
+s <- s[with(s, order(corr_classdate, samp_classdate, decreasing = TRUE)), ]
+s <- subset(s, !duplicated(s$pedlabsampnum))
+
+s_sf <- subset(s, complete.cases(latitude_std_decimal_degrees, longitude_std_decimal_degrees))
+
+
+# soil profile collection object
+spc <- h
+depths(spc) <- pedon_key ~ hzn_top + hzn_bot
+site(spc) <- s
+spc_access <- spc
+
+
+# save(ldm_access, spc_access, file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_20180914.RData")
+
 
 ```
 
