@@ -94,13 +94,12 @@ dbCreateTable(con, "area", area)
 ldm <- lapply(ldm_names, function(x) dbReadTable(con , x))
 names(ldm) <- ldm_names
 dbDisconnect(con)
-# save(ldm, file = "C:/Users/steph/Nextcloud/data/ldm/LDM-compact_20200422.RData")
-load(file = "C:/Users/steph/Nextcloud/data/ldm/LDM-compact_20200422.RData")
+
 
 
 # horizon table
 chem_vars <- c("labsampnum", "ec_predict_one_to_two", "ec_predict_one_to_two_method", "electrical_conductivity_satx", "electrical_cond_satx_method", "ph_h2o", "ph_h2o_method", "ph_saturated_paste", "exchangeable_sodium", "sodium_absorption_ratio", "total_estimated_salts_satx")
-phys_vars <- c("labsampnum", "texture_lab", "clay_total", "silt_total", "sand_total", "total_frag_wt_pct_gt_2_mm_ws", "bulk_density_third_bar")
+phys_vars <- c("labsampnum", "texture_lab", "clay_total", "silt_total", "sand_total", "total_frag_wt_pct_gt_2_mm_ws", "bulk_density_third_bar", "estimated_organic_matter")
 l_vars <- c("labsampnum", "layer_key", "pedon_key", "hzn_desgn", "hzn_top", "hzn_bot", "texture_description", "stratified_textures_flag")
 
 h <- merge(ldm$layer[l_vars],
@@ -113,6 +112,30 @@ h <- merge(h,
            by = "labsampnum",
            all.x = TRUE
            )
+tex_abb <- c("")
+
+# conversions
+h <- within(h, {
+  hzn_top     = as.numeric(hzn_top)
+  texture_lab = tolower(texture_lab)
+  tex = NA
+  tex[texture_lab %in% "c"]    = 1
+  tex[texture_lab %in% "sic"]  = 2
+  tex[texture_lab %in% "sc"]   = 8
+  tex[texture_lab %in% "cl"]   = 7
+  tex[texture_lab %in% "sicl"] = 3
+  tex[texture_lab %in% "scl"]  = 9
+  tex[texture_lab %in% "l"]    = 11
+  tex[texture_lab %in% "sil"]  = 4
+  tex[texture_lab %in% c("sl", "vfsl", "fsl")] = 5
+  tex[texture_lab %in% c("ls", "vfls", "fls")] = 10
+  tex[texture_lab %in% "s"]    = 12
+  tex[texture_lab %in% "cos"]  = 13
+  tex[texture_lab %in% c("fs", "vfs")] = 15
+  ec_ptf = ECconversion1(ec = ec_predict_one_to_two, oc = estimated_organic_matter, clay = clay_total, texture = tex, soilsolution = "1:2", method = "FAO")
+  ec_ptf = ifelse(is.na(electrical_conductivity_satx), ec_ptf, electrical_conductivity_satx)
+})
+
 
 
 # site table
@@ -129,19 +152,63 @@ s <- within(s, {
             corr_classdate = strptime(corr_classdate, format="%Y-%m-%d %H:%M:%S")
             })
 s <- s[with(s, order(corr_classdate, samp_classdate, decreasing = TRUE)), ]
-s <- subset(s, !duplicated(s$pedlabsampnum))
 
+
+
+# sf object
+library(sf)
 s_sf <- subset(s, complete.cases(latitude_std_decimal_degrees, longitude_std_decimal_degrees))
+s_sf <- st_as_sf(s_sf, 
+                 coords = c("longitude_std_decimal_degrees", "latitude_std_decimal_degrees"),
+                 crs = 4326
+                 )
 
 
-# soil profile collection object
-spc <- h
+# # soil profile collection object
+# # optionally test for bad horizonation... flag, and remove
+#   if (rmHzErrors) {
+#     h.test <- plyr::ddply(h, 'pedon_key', function(d) {
+#       res <- aqp::hzDepthTests(top=d[['hzn_top']], bottom=d[['hzn_bot']])
+#       return(all(!res))
+#     })
+#     names(h.test)[2] <- "hz_logic_pass"
+# 
+#     # which are the good (valid) ones?
+#     good.ids <- as.character(h.test$pedon_key[which(h.test$hz_logic_pass)])
+#     bad.ids  <- as.character(h.test$pedon_key[which(! h.test$hz_logic_pass)])
+# 
+#     # keep the good ones
+#     h <- h[which(h$pedon_key %in% good.ids), ]
+# 
+#     # keep track of those components with horizonation errors
+#     if (length(bad.ids) > 0)
+#       assign('kssl.hz.problems', value=bad.ids, envir=soilDB.env)
+#   }
+
+library(aqp)
+spc <- h[h$pedon %in% s$pedon_key & !is.na(h$ec_predict_one_to_two), ]
 depths(spc) <- pedon_key ~ hzn_top + hzn_bot
-site(spc) <- s
-spc_access <- spc
+site(spc) <- length(s[s$pedon_key %in% h$pedon_key, ])
 
 
-# save(ldm_access, spc_access, file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_20180914.RData")
+# convert via pedotransfer functions
+library(soilassessment)
+
+
+
+s_mps <- mpspline2::mpspline(spc,
+                             var_name = "ec_predict_one_to_two", 
+                             lam = 0.8, 
+                             d = c(0, 30, 100, 150)
+                             )
+s_mps2 <- lapply(s_mps, function(x) cbind(pedon_key = x$pedon_key, ec = x$est_dcm))
+s_mps2 <- do.call("rbind", s_mps2)
+s_mps2 <- as.data.frame(s_mps2)
+s_mps2$depths <- row.names(s_mps2)
+
+
+# save(ldm, spc, s_sf, file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/LDM-compact_20200422.RData")
+load(file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/LDM-compact_20200422.RData")
 
 
 ```
