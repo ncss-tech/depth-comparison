@@ -1,0 +1,93 @@
+---
+title: "Depth interval estimate vs Point-depth estimates"
+author: "Stephen Roecker"
+date: "7/10/2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+
+library(aqp)
+library(sp)
+library(GSIF)
+
+```
+
+
+This example dataset is from the GSIF R package help file for the mpspline().
+
+```{r, message=FALSE}
+
+## sample profile from Nigeria:
+prof1 <- data.frame(id = "ISRIC:NG0017", 
+                    top = c(0, 18, 36, 65, 87, 127), 
+                    bot = c(18, 36, 65, 87, 127, 181),
+                    ORCDRC = c(18.4, 4.4, 3.6, 3.6, 3.2, 1.2),
+                    munsell = c("7.5YR3/2", "7.5YR4/4", "2.5YR5/6", "5YR5/8", "5YR5/4", "10YR7/3")
+                    )
+loc <- data.frame(lon = 3.90, lat = 7.50, id = "ISRIC:NG0017", FAO1988 = "LXp")
+prof1 <- merge(prof1, loc, by = "id", all.x = TRUE)
+
+depths(prof1) <- id ~ top + bot
+site(prof1) <- ~ lon + lat + FAO1988 
+coordinates(prof1) <- ~ lon + lat
+proj4string(prof1) <- CRS("+proj=longlat +datum=WGS84")
+
+# fit a spline:
+prof1_mps <- GSIF::mpspline(prof1, var.name="ORCDRC")
+prof1_mps$var.std            # depth interval (e.g. block mean)
+head(prof1_mps$var.1cm[, 1]) # depth slices   (e.g. point estimates)
+
+
+# aqp depth slice approach
+prof1_slab  <- aqp::slab(prof1, id ~ ORCDRC, slab.structure = c(0, 5, 15, 30, 60, 100, 200), slab.fun = mean)
+prof1_slice <- aqp::slice(prof1, 0:200 ~ ORCDRC)
+
+```
+
+The below example confirms that the var.std estimates are the mean of the var.1cm for the 0-5 cm depth interval.
+
+```{r}
+
+# 0-5 cm 
+# spline approach - depth interval
+prof1_mps$var.std[1]
+mean(prof1_mps$var.1cm[1:5])
+
+```
+
+The below example confirms that the slab() depth interval estimate is the same as the mean of the slice() point depth estimates for the 0-5 cm depth interval.
+
+
+```{r}
+
+# slice approach - depth interval
+prof1_slab$value[1]
+mean(horizons(prof1_slice)$ORCDRC[1:5])
+
+```
+
+
+True (?) point depth estimates for the spline and slice approaches.
+
+```{r}
+
+idx <- round(c(mean(0:5), mean(5:15), mean(15:30), mean(30:60), mean(60:100), mean(100:200)))
+idx
+
+# spline approach - depth slice
+prof1_mps$var.1cm[idx]
+
+
+# slice approach - depth slice
+horizons(prof1_slice)$ORCDRC[idx]
+
+```
+
