@@ -4,15 +4,16 @@
 ## Extraction of covariates to points
 ## Point depth training set creation
 ## Prediction interval creation
-## Relative Precition interval analysis
+## Relative Predition interval analysis
 ## Cross Validation
 ## Most steps parallelized
 ######################
-## Authors: Travis Nauman...
+## Authors: Travis Nauman, Suzann Kienast-Brown
 
 # Workspace setup
 # Install packages if not already installed
-required.packages <- c("raster", "sp", "rgdal", "randomForest", "snow", "snowfall", "quantregForest","dplyr", "ggplot2","hexbin","parallel", "aqp", "tidyr")# might need snowfall
+required.packages <- c("raster", "sp", "rgdal", "randomForest", "snow", "snowfall", "quantregForest","dplyr", "ggplot2","hexbin","parallel", "aqp", "tidyr")
+
 new.packages <- required.packages[!(required.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 lapply(required.packages, require, character.only=T)
@@ -23,16 +24,18 @@ memory.limit(500000)
 rasterOptions(maxmemory = 1e+09, chunksize = 1e+08, memfrac = 0.9)
 
 ## Key Folder Locations
+# travis
 predfolder <- "/home/tnaum/data/BLMsoils/Sand_2D_NASIS_SSURGO_SCD"
 covfolder <- "/home/tnaum/data/UCRB_Covariates"
-#suz
-predfolder <- "D:/dsm/methodology/predict"
-covfolder <- "D:/dsm/methodology/covariates"
+# suz
+predfolder <- "K:/methodology/predict"
+covfolder <- "K:/methodology/covariates"
 
-##load Rdata file with lab data - soil profile collection
-load("D:/dsm/methodology/NCSS_Lab_Data_Mart_20180914.Rdata")
+## oad Rdata file with lab data - soil profile collection
+load("K:/methodology/NCSS_Lab_Data_Mart_20180914.Rdata")
 
-##check it out
+## check it out
+aqp::rebuildSPC(spc_access)
 spc_access
 str(spc_access)
 
@@ -44,19 +47,19 @@ horizons <- horizons(spc_access)[ , c('pedon_key', 'labsampnum', 'hzn_top', 'hzn
 str(horizons)
 summary(horizons)
 
-##merge site and horizon data frames by pedon key
+## merge site and horizon data frames by pedon key
 site_hzn <- merge(sites, horizons, by = "pedon_key", all=TRUE)
 str(site_hzn)
 summary(site_hzn)
 
-##remove NA from location 
+## remove NA from location 
 pts <- site_hzn %>% drop_na(latitude_decimal_degrees, hzn_top, hzn_bot)
 str(pts)
 summary(pts)
 
 
 ######## Load shapefile (if needed) ##############
-#setwd(predfolder)## FOlder with points
+#setwd(predfolder)## Folder with points
 #shp.pts <-readOGR(".", "ec_12pre_ncss_LIMS_UPCO")
 #point.proj <- projection(shp.pts)
 # If no prj file and you know proj, can specify by name
@@ -67,7 +70,7 @@ summary(pts)
 ######## Get points for extraction if in table form ###########
 #setwd(predfolder)
 #pts <- read.delim("NCSS17_PSDA_rkFrags_ttab.txt") # If in delimited file other than csv
-# pts <- readRDS("nasispts_gSSURGO18hor_ucrb_final.rds") # If in rds
+#pts <- readRDS("nasispts_gSSURGO18hor_ucrb_final.rds") # If in rds
 ### Weed out points with imprecise coordinates (if needed) ###
 pts$latnchar <- nchar(abs(pts$latitude_decimal_degrees)) # update with correct field name
 pts$longnchar <- nchar(abs(pts$longitude_decimal_degrees))
@@ -81,7 +84,7 @@ projection(shp.pts) <- temp.proj
 
 
 ######## Load map clip boundary (if needed) ###########
-setwd("D:/dsm/methodology/boundary")
+setwd("K:/methodology/boundary")
 polybound <- readOGR(".", "CO_River_watershed_Meade_alb")
 polybound <- spTransform(polybound, temp.proj)
 ## Now clip points and check with visualization
@@ -124,41 +127,48 @@ setwd(predfolder)
 saveRDS(pts.ext, "pts_ext_covs.rds")
 
 ## Prep training data for Random Forest
-pts.ext$prop <- pts.ext$clay_tot_psa ## UPDATE EVERY TIME with proper response field
-prop <- "clay_tot_psa" ## Dependent variable
+pts.ext$prop <- pts.ext$oc ## UPDATE EVERY TIME with proper response field
+prop <- "oc" ## Dependent variable
 
 ## Create location IDs for extra duplicate removal step
 pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
 
 ##### Loop to train and predict properties for all depths
-####depths <- c(0,5,15,30,60,100,150) 
-d <- 0
+depths <- c(0,5,15,30,60,100,150) 
+d <- 30 # if running or checking for one depth
 for(d in depths){
 pts.extc <- subset(pts.ext, as.numeric(pts.ext$hzn_top) <= d & as.numeric(pts.ext$hzn_bot) > d) # subset to chosen depth
 pedonLocations <- unique(pts.extc$LocID) # if length differs from # of rows in pts, there are duplicates
 pts.extc <- subset(pts.extc, !duplicated(pts.extc[c("LocID")])) #removes duplicates
-ptspred.list <- gsub(".tif","", cov.grids)# Take .tif off of the grid list to just get the variable names
-ptspred.list <- c(ptspred.list,"prop") #Add dependent variable
-pts.extc <- pts.extc[c(ptspred.list)]## Or create a specific list of dependent variable and covariate names to use 
-pts.extcc <- na.omit(pts.extc)# Remove any record with NA's (in any column - be careful)
+ptspred.list <- gsub(".tif","", cov.grids) # Take .tif off of the grid list to just get the variable names
+ptspred.list <- c(ptspred.list,"prop") # Add dependent variable
+pts.extc <- pts.extc[c(ptspred.list)] ## Or create a specific list of dependent variable and covariate names to use 
+pts.extcc <- na.omit(pts.extc) # Remove any record with NA's (in any column - be careful)
 xtrain <- as.matrix(pts.extcc[c(gsub(".tif","", cov.grids))])
 ytrain <- c(as.matrix(pts.extcc[c("prop")]))
-# logytrain <- log(ytrain+0.1)
-# sqrtytrain <- sqrt(ytrain)
+## transform property data if needed
+hist(ytrain) # examine distribution to determine transformation
+logytrain <- log(ytrain+0.1) # oc
+sqrtytrain <- sqrt(ytrain) # clay
+hist(logytrain) # check transformed distribution
+hist(sqrtytrain) # check transformed distribution
+ytrain <- logytrain # oc; assign transformed values back to ytrain for prediction and CV
+ytrain <- sqrtytrain # clay; assign transformed values back to ytrain for prediction and CV
+##
 varrange <- as.numeric(quantile(pts.extcc$prop, probs=c(0.975), na.rm=T)-quantile(pts.extcc$prop, probs=c(0.025),na.rm=T)) # For RPI
 
 ############### Build quantile Random Forest
 set.seed(915)
-Qsoiclass <- quantregForest(x=xtrain, y=ytrain, importance=TRUE, ntree=120, keep.forest=TRUE) # If dataset is ~>300: , nthreads = cpus)
-soiclass <- Qsoiclass
-class(soiclass) <- "randomForest"
+####Qsoiclass <- quantregForest(x=xtrain, y=ytrain, importance=TRUE, ntree=120, keep.forest=TRUE) # If dataset is ~>300: , nthreads = cpus)
+####soiclass <- Qsoiclass
+####class(soiclass) <- "randomForest"
 ## Linear Adjustment for bias
-pts.extcc$trainpreds <- predict(soiclass, newdata=xtrain)
-pts.extcc$prop_t <- pts.extcc$prop ## TRANSFORM IF NEEDED
-attach(pts.extcc)
-rf_lm_adj <- lm(prop_t ~ trainpreds)
-detach(pts.extcc)
-pts.extcc$trainpredsadj <- predict(rf_lm_adj, newdata=pts.extcc)
+####pts.extcc$trainpreds <- predict(soiclass, newdata=xtrain)
+####pts.extcc$prop_t <- pts.extcc$prop ## TRANSFORM IF NEEDED
+####attach(pts.extcc)
+####rf_lm_adj <- lm(prop_t ~ trainpreds)
+####detach(pts.extcc)
+####pts.extcc$trainpredsadj <- predict(rf_lm_adj, newdata=pts.extcc)
 ## plot linear adjustment
 # x1 <-c(-100,0,100,10000,100000000)
 # y1 <-c(-100,0,100,10000,100000000)
@@ -167,43 +177,43 @@ pts.extcc$trainpredsadj <- predict(rf_lm_adj, newdata=pts.extcc)
 # lines(x1,y1, col = 'red')#1:1 line
 # plot(ytrain~pts.extcc$trainpredsadj) #Fit plot
 # lines(x1,y1, col = 'red')#1:1 line
-varImpPlot(soiclass) # look at variable imporance
+####varImpPlot(soiclass) # look at variable imporance
 ## Save models
-setwd(predfolder)
-saveRDS(Qsoiclass, paste("Qsoiclass_RFmodel", prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
-saveRDS(rf_lm_adj, paste("rflmadj_RFmodel",prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
+####setwd(predfolder)
+####saveRDS(Qsoiclass, paste("Qsoiclass_RFmodel", prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
+####saveRDS(rf_lm_adj, paste("rflmadj_RFmodel",prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
 
 
 ## Reference covar rasters to use in prediction
-setwd(covfolder)
-rasterOptions(maxmemory = 1e+09,chunksize = 2e+08)# maxmemory = 1e+09,chunksize = 1e+08 for soilmonster
-rasters <- stack(cov.grids)
+####setwd(covfolder)
+####rasterOptions(maxmemory = 1e+09,chunksize = 2e+08)# maxmemory = 1e+09,chunksize = 1e+08 for soilmonster
+####rasters <- stack(cov.grids)
 
 ## Predict onto covariate grid
 setwd(predfolder)
 ## Parallelized predict
-beginCluster(cpus,type='SOCK')
-predl <- clusterR(rasters, predict, args=list(model=Qsoiclass,what=c(0.025)),progress="text")
-predh <- clusterR(rasters, predict, args=list(model=Qsoiclass,what=c(0.975)),progress="text")
-Sys.time()
-pred <- clusterR(rasters, predict, args=list(model=soiclass),progress="text")
-Sys.time()
-names(pred) <- "trainpreds"
+####beginCluster(cpus,type='SOCK')
+####predl <- clusterR(rasters, predict, args=list(model=Qsoiclass,what=c(0.025)),progress="text")
+####predh <- clusterR(rasters, predict, args=list(model=Qsoiclass,what=c(0.975)),progress="text")
+####Sys.time()
+####pred <- clusterR(rasters, predict, args=list(model=soiclass),progress="text")
+####Sys.time()
+####names(pred) <- "trainpreds"
 ## Linear Adjustment
-predlm <- clusterR(pred, predict, args=list(model=rf_lm_adj),progress="text")
+####predlm <- clusterR(pred, predict, args=list(model=rf_lm_adj),progress="text")
 ## PI widths
-s <- stack(predh,predl)
-PIwidth.fn <- function(a,b) {
-  ind <- a-b
-  return(ind)
-}
-PIwidth <- clusterR(s, overlay, args=list(fun=PIwidth.fn),progress = "text")
+####s <- stack(predh,predl)
+####PIwidth.fn <- function(a,b) {
+  ####ind <- a-b
+  ####return(ind)
+####}
+####PIwidth <- clusterR(s, overlay, args=list(fun=PIwidth.fn),progress = "text")
 # Determine 95% interquantile range of original training data for horizons that include the depth being predicted
-PIrelwidth.fn <- function(a,b) {
-  ind <- (a-b)/varrange
-  return(ind)
-}
-PIrelwidth <- clusterR(s, overlay, args=list(fun=PIrelwidth.fn),progress = "text",export='varrange')
+####PIrelwidth.fn <- function(a,b) {
+  ####ind <- (a-b)/varrange
+  ####return(ind)
+####}
+####PIrelwidth <- clusterR(s, overlay, args=list(fun=PIrelwidth.fn),progress = "text",export='varrange')
 ## Back transformation workflow 
 # bt.fn <- function(x) {
 #   ind <- (exp(x))-0.1 #If a backtransform is needed 10^(x) or exp(x) or ^2
@@ -225,14 +235,14 @@ PIrelwidth <- clusterR(s, overlay, args=list(fun=PIrelwidth.fn),progress = "text
 # }
 # PIrelwidth_bt <- clusterR(s_bt, overlay, args=list(fun=PIrelwidth_bt.fn),progress = "text", export='varrange')
 
-endCluster()
+####endCluster()
 ## Write new geotiff files
 ##setwd(predfolder)
 ## Untranformed code block
-writeRaster(predlm, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
-writeRaster(predl, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_l.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
-writeRaster(predh, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_h.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
-writeRaster(PIrelwidth, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_relwidth.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+####writeRaster(predlm, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+####writeRaster(predl, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_l.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+####writeRaster(predh, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_h.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+####writeRaster(PIrelwidth, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_relwidth.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
 # writeRaster(PIwidth, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_width.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
 # ## Transformed code block
 # writeRaster(pred_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_bt_ART_SG100covs.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
@@ -301,15 +311,17 @@ BTbias.abs.max <- max(abs(pts.extpcv$BTbias))
 BTbias.ave <- mean(pts.extpcv$BTbias)
 PICP <- sum(ifelse(pts.extpcv$prop_bt <= pts.extpcv$pcvpredpre.975_bt & pts.extpcv$prop_bt >= pts.extpcv$pcvpredpre.025_bt,1,0))/length(pts.extpcv[,1])
 ## Summarize RPI in full raster prediction using sample for speed (tested against full average)
-rpi_samp <- sampleRegular(PIrelwidth,size=200000,useGDAL=T)
-rpi_samp <- na.omit(rpi_samp)
-gRPI.ave <- mean(rpi_samp)
-gRPI.med <- median(rpi_samp)
+####rpi_samp <- sampleRegular(PIrelwidth,size=200000,useGDAL=T)
+####rpi_samp <- na.omit(rpi_samp)
+####gRPI.ave <- mean(rpi_samp)
+####gRPI.med <- median(rpi_samp)
 ## Create PCV table
-CVdf <- data.frame(cvp.RMSE, cvp.Rsquared, cvp.RMSE_bt, cvp.Rsquared_bt,RPI.cvave,RPI.cvmed,gRPI.ave,gRPI.med,PICP,rel.abs.res.ave,rel.abs.res.med,BTbias.abs.max,BTbias.ave)
-names(CVdf) <- c("cvp.RMSE","cvp.Rsquared","cvp.RMSE_bt", "cvp.Rsquared_bt","RPI.CVave","RPI.CVmed","gRPI.ave","gRPI.med","PICP","rel.abs.res.ave","rel.abs.res.med","BTbias.abs.max","BTbias.ave")
+####CVdf <- data.frame(cvp.RMSE, cvp.Rsquared, cvp.RMSE_bt, cvp.Rsquared_bt,RPI.cvave,RPI.cvmed,gRPI.ave,gRPI.med,PICP,rel.abs.res.ave,rel.abs.res.med,BTbias.abs.max,BTbias.ave)
+CVdf <- data.frame(cvp.RMSE, cvp.Rsquared, cvp.RMSE_bt, cvp.Rsquared_bt,RPI.cvave,RPI.cvmed,PICP,rel.abs.res.ave,rel.abs.res.med,BTbias.abs.max,BTbias.ave)
+####names(CVdf) <- c("cvp.RMSE","cvp.Rsquared","cvp.RMSE_bt", "cvp.Rsquared_bt","RPI.CVave","RPI.CVmed","gRPI.ave","gRPI.med","PICP","rel.abs.res.ave","rel.abs.res.med","BTbias.abs.max","BTbias.ave")
+names(CVdf) <- c("cvp.RMSE","cvp.Rsquared","cvp.RMSE_bt", "cvp.Rsquared_bt","RPI.CVave","RPI.CVmed","PICP","rel.abs.res.ave","rel.abs.res.med","BTbias.abs.max","BTbias.ave")
 setwd(predfolder)
-write.table(CVdf, paste("PCVstats", prop, d, "cm_nasisSSURGO_ART_SG100.txt",sep="_"), sep = "\t", row.names = FALSE)
+write.table(CVdf, paste("PCVstats", prop, d, "cm_ptdepth_DC_UCRB.txt",sep="_"), sep = "\t", row.names = FALSE)
 ## CV 1:1 plot
 viri <- c("#440154FF", "#39568CFF", "#1F968BFF", "#73D055FF", "#FDE725FF") # color ramp
 gplt.dcm.2D.CV <- ggplot(data=pts.extpcv, aes(prop_t, pcvpred)) +
@@ -320,9 +332,9 @@ gplt.dcm.2D.CV <- ggplot(data=pts.extpcv, aes(prop_t, pcvpred)) +
 gplt.dcm.2D.CV
 ## Save Cross validation graph and data for future plotting
 setwd(predfolder)
-ggsave(paste(prop,'_CV_plot.tif',sep=""), plot = gplt.dcm.2D.CV, device = "tiff", dpi = 600, limitsize = TRUE, width = 4, height = 4, units = 'in')
-saveRDS(pts.extpcv, paste(prop, "cvlm_preds_2D", d, "cm_nasisSSURGO_ART_SG100.rds", sep="_"))
-} # End of depth loop
+ggsave(paste(prop, d, 'cm_CV_plot.tif', sep="_"), plot = gplt.dcm.2D.CV, device = "tiff", dpi = 600, limitsize = TRUE, width = 4, height = 4, units = 'in')
+saveRDS(pts.extpcv, paste(prop, "cvlm_preds_2D", d, "cm_ptdepth_DC_UCRB.rds", sep="_"))
+} # End of depth loop 
 
 ############# Masking water pixels out ############
 ## Code for producting water mask from NLCD (if necessary)
