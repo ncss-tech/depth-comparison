@@ -132,7 +132,7 @@ pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decim
 
 ######## Loop to Train and Predict Properties for All Depths ########
 depths <- c(0,5,15,30,60,100,150) 
-d <- 30 # if running or checking for one depth
+#d <- 30 # if running or checking for one depth
 for(d in depths){
 pts.extc <- subset(pts.ext, as.numeric(pts.ext$hzn_top) <= d & as.numeric(pts.ext$hzn_bot) > d) # subset to chosen depth
 pedonLocations <- unique(pts.extc$LocID) # if length differs from # of rows in pts, there are duplicates
