@@ -122,8 +122,8 @@ saveRDS(pts.ext, "pts_ext_covs.rds")
 
 
 ######## Prep Training Data for Random Forest ########
-pts.ext$prop <- pts.ext$sand_tot_psa # UPDATE EVERY TIME with proper response field
-prop <- "sand_tot_psa" # dependent variable
+pts.ext$prop <- pts.ext$clay_tot_psa # UPDATE EVERY TIME with proper response field
+prop <- "clay_tot_psa" # dependent variable
 
 ## create location IDs for extra duplicate removal step
 pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
@@ -146,7 +146,7 @@ ytrain <- c(as.matrix(pts.extcc[c("prop")]))
 ### transform property data if needed (oc, clay) ###
 #hist(ytrain) # examine distribution to determine transformation
 #ytrain <- log(ytrain+0.1) # oc
-#ytrain <- sqrt(ytrain) # clay
+ytrain <- sqrt(ytrain) # clay
 #hist(ytrain) # check transformed distribution
 ### for RPI
 varrange <- as.numeric(quantile(pts.extcc$prop, probs=c(0.975), na.rm=T)-quantile(pts.extcc$prop, probs=c(0.025),na.rm=T)) 

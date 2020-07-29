@@ -46,7 +46,7 @@ sites <- site(spc_access)[ , c('pedon_key', 'pedlabsampnum', 'latitude_decimal_d
 str(sites)
 summary(sites)
 
-horizons <- horizons(spc_access)[ , c('pedon_key', 'labsampnum', 'hzn_top', 'hzn_bot', 'clay_tot_psa', 'silt_tot_psa','sand_tot_psa','ph_h2o','oc')]
+horizons <- horizons(spc_access)[ , c('pedon_key', 'labsampnum', 'hzn_top', 'hzn_bot', 'clay_tot_psa', 'silt_tot_psa', 'sand_tot_psa', 'ph_h2o', 'oc')]
 str(horizons)
 summary(horizons)
 
@@ -175,7 +175,7 @@ varImpPlot(soiclass) # look at variable importance
 ### Save models
 setwd(predfolder)
 saveRDS(Qsoiclass, paste("Qsoiclass_RFmodel", prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
-saveRDS(rf_lm_adj, paste("rflmadj_RFmodel",prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
+saveRDS(rf_lm_adj, paste("rflmadj_RFmodel", prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
 
 
 ### reference covariate rasters to use in prediction

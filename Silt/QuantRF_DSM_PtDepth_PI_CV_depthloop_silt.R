@@ -122,8 +122,8 @@ saveRDS(pts.ext, "pts_ext_covs.rds")
 
 
 ######## Prep Training Data for Random Forest ########
-pts.ext$prop <- pts.ext$sand_tot_psa # UPDATE EVERY TIME with proper response field
-prop <- "sand_tot_psa" # dependent variable
+pts.ext$prop <- pts.ext$silt_tot_psa # UPDATE EVERY TIME with proper response field
+prop <- "silt_tot_psa" # dependent variable
 
 ## create location IDs for extra duplicate removal step
 pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
