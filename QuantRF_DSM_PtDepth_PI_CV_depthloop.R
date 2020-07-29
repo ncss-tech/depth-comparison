@@ -253,7 +253,7 @@ writeRaster(PIrelwidth, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_rel
 pts.extcvm <- pts.extcc
 nfolds <- 10
 pts.extcvm$folds <- sample.int(nfolds,size =length(pts.extcvm[,1]),replace=T)
-pts.extcvm$prop_t <- pts.extcvm$prop #transform if needed else just create new version of prop
+pts.extcvm$prop_t <- pts.extcvm$prop # transform if needed else just create new version of prop
 formulaStringCVm <- as.formula(paste('prop_t ~', paste(gsub(".tif","", cov.grids), collapse="+")))
 #for (g in seq(nfolds)){
 CV_factorRF <- function(g,pts.extcvm, formulaStringCVm){
