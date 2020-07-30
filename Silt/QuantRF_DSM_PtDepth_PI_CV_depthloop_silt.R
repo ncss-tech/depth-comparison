@@ -46,7 +46,7 @@ sites <- site(spc_access)[ , c('pedon_key', 'pedlabsampnum', 'latitude_decimal_d
 str(sites)
 summary(sites)
 
-horizons <- horizons(spc_access)[ , c('pedon_key', 'labsampnum', 'hzn_top', 'hzn_bot', 'clay_tot_psa', 'silt_tot_psa','sand_tot_psa','ph_h2o','oc')]
+horizons <- horizons(spc_access)[ , c('pedon_key', 'labsampnum', 'hzn_top', 'hzn_bot', 'clay_tot_psa', 'silt_tot_psa', 'sand_tot_psa', 'ph_h2o', 'oc')]
 str(horizons)
 summary(horizons)
 
@@ -122,8 +122,8 @@ saveRDS(pts.ext, "pts_ext_covs.rds")
 
 
 ######## Prep Training Data for Random Forest ########
-pts.ext$prop <- pts.ext$sand_tot_psa # UPDATE EVERY TIME with proper response field
-prop <- "sand_tot_psa" # dependent variable
+pts.ext$prop <- pts.ext$silt_tot_psa # UPDATE EVERY TIME with proper response field
+prop <- "silt_tot_psa" # dependent variable
 
 ## create location IDs for extra duplicate removal step
 pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
@@ -175,7 +175,7 @@ varImpPlot(soiclass) # look at variable importance
 ### Save models
 setwd(predfolder)
 saveRDS(Qsoiclass, paste("Qsoiclass_RFmodel", prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
-saveRDS(rf_lm_adj, paste("rflmadj_RFmodel",prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
+saveRDS(rf_lm_adj, paste("rflmadj_RFmodel", prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
 
 
 ### reference covariate rasters to use in prediction

@@ -122,8 +122,8 @@ saveRDS(pts.ext, "pts_ext_covs.rds")
 
 
 ######## Prep Training Data for Random Forest ########
-pts.ext$prop <- pts.ext$ph_h2o # UPDATE EVERY TIME with proper response field
-prop <- "ph_h2o" # dependent variable
+pts.ext$prop <- pts.ext$clay_tot_psa # UPDATE EVERY TIME with proper response field
+prop <- "clay_tot_psa" # dependent variable
 
 ## create location IDs for extra duplicate removal step
 pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
@@ -146,7 +146,7 @@ ytrain <- c(as.matrix(pts.extcc[c("prop")]))
 ### transform property data if needed (oc, clay) ###
 #hist(ytrain) # examine distribution to determine transformation
 #ytrain <- log(ytrain+0.1) # oc
-#ytrain <- sqrt(ytrain) # clay
+ytrain <- sqrt(ytrain) # clay
 #hist(ytrain) # check transformed distribution
 ### for RPI
 varrange <- as.numeric(quantile(pts.extcc$prop, probs=c(0.975), na.rm=T)-quantile(pts.extcc$prop, probs=c(0.025),na.rm=T)) 
@@ -330,7 +330,7 @@ write.table(CVdf, paste("PCVstats", prop, d, "cm_ptdepth_DC_UCRB.txt",sep="_"), 
 ### CV 1:1 plot
 viri <- c("#440154FF", "#39568CFF", "#1F968BFF", "#73D055FF", "#FDE725FF") # color ramp
 gplt.dcm.2D.CV <- ggplot(data=pts.extpcv, aes(prop_t, pcvpred)) +
-  stat_binhex(bins = 30) + geom_abline(intercept = 0, slope = 1,lwd=1)  + xlim(0,12) + ylim(0,12) +
+  stat_binhex(bins = 30) + geom_abline(intercept = 0, slope = 1,lwd=1)  + xlim(0,100) + ylim(0,100) +
   theme(axis.text=element_text(size=8), legend.text=element_text(size=10), axis.title=element_text(size=10),plot.title = element_text(size=10,hjust=0.5)) +
   xlab("Measured") + ylab("CV Prediction") + scale_fill_gradientn(name = "log(Count)", trans = "log", colours = rev(viri)) +
   ggtitle(paste("Cross val", prop, d, "cm",sep=" "))

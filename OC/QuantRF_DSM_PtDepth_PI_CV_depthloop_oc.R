@@ -122,8 +122,8 @@ saveRDS(pts.ext, "pts_ext_covs.rds")
 
 
 ######## Prep Training Data for Random Forest ########
-pts.ext$prop <- pts.ext$ph_h2o # UPDATE EVERY TIME with proper response field
-prop <- "ph_h2o" # dependent variable
+pts.ext$prop <- pts.ext$oc # UPDATE EVERY TIME with proper response field
+prop <- "oc" # dependent variable
 
 ## create location IDs for extra duplicate removal step
 pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
@@ -132,7 +132,7 @@ pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decim
 
 ######## Loop to Train and Predict Properties for All Depths ########
 depths <- c(0,5,15,30,60,100,150) 
-#d <- 30 # if running or checking for one depth
+d <- 5 # if running or checking for one depth
 for(d in depths){
 pts.extc <- subset(pts.ext, as.numeric(pts.ext$hzn_top) <= d & as.numeric(pts.ext$hzn_bot) > d) # subset to chosen depth
 pedonLocations <- unique(pts.extc$LocID) # if length differs from # of rows in pts, there are duplicates
@@ -145,7 +145,7 @@ xtrain <- as.matrix(pts.extcc[c(gsub(".tif","", cov.grids))])
 ytrain <- c(as.matrix(pts.extcc[c("prop")]))
 ### transform property data if needed (oc, clay) ###
 #hist(ytrain) # examine distribution to determine transformation
-#ytrain <- log(ytrain+0.1) # oc
+ytrain <- log(ytrain+0.1) # oc
 #ytrain <- sqrt(ytrain) # clay
 #hist(ytrain) # check transformed distribution
 ### for RPI
@@ -330,7 +330,7 @@ write.table(CVdf, paste("PCVstats", prop, d, "cm_ptdepth_DC_UCRB.txt",sep="_"), 
 ### CV 1:1 plot
 viri <- c("#440154FF", "#39568CFF", "#1F968BFF", "#73D055FF", "#FDE725FF") # color ramp
 gplt.dcm.2D.CV <- ggplot(data=pts.extpcv, aes(prop_t, pcvpred)) +
-  stat_binhex(bins = 30) + geom_abline(intercept = 0, slope = 1,lwd=1)  + xlim(0,12) + ylim(0,12) +
+  stat_binhex(bins = 30) + geom_abline(intercept = 0, slope = 1,lwd=1)  + xlim(0,50) + ylim(0,50) +
   theme(axis.text=element_text(size=8), legend.text=element_text(size=10), axis.title=element_text(size=10),plot.title = element_text(size=10,hjust=0.5)) +
   xlab("Measured") + ylab("CV Prediction") + scale_fill_gradientn(name = "log(Count)", trans = "log", colours = rev(viri)) +
   ggtitle(paste("Cross val", prop, d, "cm",sep=" "))

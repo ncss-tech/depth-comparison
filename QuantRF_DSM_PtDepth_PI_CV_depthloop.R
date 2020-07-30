@@ -46,7 +46,7 @@ sites <- site(spc_access)[ , c('pedon_key', 'pedlabsampnum', 'latitude_decimal_d
 str(sites)
 summary(sites)
 
-horizons <- horizons(spc_access)[ , c('pedon_key', 'labsampnum', 'hzn_top', 'hzn_bot', 'clay_tot_psa', 'silt_tot_psa','sand_tot_psa','ph_h2o','oc')]
+horizons <- horizons(spc_access)[ , c('pedon_key', 'labsampnum', 'hzn_top', 'hzn_bot', 'clay_tot_psa', 'silt_tot_psa', 'sand_tot_psa', 'ph_h2o', 'oc')]
 str(horizons)
 summary(horizons)
 
@@ -175,7 +175,7 @@ varImpPlot(soiclass) # look at variable importance
 ### Save models
 setwd(predfolder)
 saveRDS(Qsoiclass, paste("Qsoiclass_RFmodel", prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
-saveRDS(rf_lm_adj, paste("rflmadj_RFmodel",prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
+saveRDS(rf_lm_adj, paste("rflmadj_RFmodel", prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
 
 
 ### reference covariate rasters to use in prediction
@@ -330,7 +330,7 @@ write.table(CVdf, paste("PCVstats", prop, d, "cm_ptdepth_DC_UCRB.txt",sep="_"), 
 ### CV 1:1 plot
 viri <- c("#440154FF", "#39568CFF", "#1F968BFF", "#73D055FF", "#FDE725FF") # color ramp
 gplt.dcm.2D.CV <- ggplot(data=pts.extpcv, aes(prop_t, pcvpred)) +
-  stat_binhex(bins = 30) + geom_abline(intercept = 0, slope = 1,lwd=1)  + xlim(0,100) + ylim(0,100) +
+  stat_binhex(bins = 30) + geom_abline(intercept = 0, slope = 1,lwd=1)  + xlim(0,12) + ylim(0,12) +
   theme(axis.text=element_text(size=8), legend.text=element_text(size=10), axis.title=element_text(size=10),plot.title = element_text(size=10,hjust=0.5)) +
   xlab("Measured") + ylab("CV Prediction") + scale_fill_gradientn(name = "log(Count)", trans = "log", colours = rev(viri)) +
   ggtitle(paste("Cross val", prop, d, "cm",sep=" "))
