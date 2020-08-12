@@ -210,25 +210,25 @@ PIrelwidth.fn <- function(a,b) {
 PIrelwidth <- clusterR(s, overlay, args=list(fun=PIrelwidth.fn),progress = "text",export='varrange')
 
 ### back transformation workflow 
-# bt.fn <- function(x) {
-#   ind <- (exp(x))-0.1 #If a backtransform is needed 10^(x) or exp(x) or ^2
-#   return(ind)
-# }
-# predh_bt <- clusterR(predh, calc, args=list(fun=bt.fn),progress='text')
-# predl_bt <- clusterR(predl, calc, args=list(fun=bt.fn),progress='text')
-# pred_bt <- clusterR(pred, calc, args=list(fun=bt.fn),progress='text')
-# s_bt <- stack(predh_bt,predl_bt)
-# PIwidth_bt.fn <- function(a,b) {
-#   ind <- a-b
-#   return(ind)
-# }
-# PIwidth_bt <- clusterR(s_bt, overlay, args=list(fun=PIwidth_bt.fn),progress = "text")
+bt.fn <- function(x) {
+  ind <- (exp(x))-0.1 #If a backtransform is needed 10^(x) or exp(x) or ^2
+  return(ind)
+}
+predh_bt <- clusterR(predh, calc, args=list(fun=bt.fn),progress='text')
+predl_bt <- clusterR(predl, calc, args=list(fun=bt.fn),progress='text')
+pred_bt <- clusterR(pred, calc, args=list(fun=bt.fn),progress='text')
+s_bt <- stack(predh_bt,predl_bt)
+PIwidth_bt.fn <- function(a,b) {
+ind <- a-b
+return(ind)
+}
+PIwidth_bt <- clusterR(s_bt, overlay, args=list(fun=PIwidth_bt.fn),progress = "text")
 # ## If transformed, use the following code for PI width prep steps
-# PIrelwidth_bt.fn <- function(a,b) {
-#   ind <- (a-b)/varrange
-#   return(ind)
-# }
-# PIrelwidth_bt <- clusterR(s_bt, overlay, args=list(fun=PIrelwidth_bt.fn),progress = "text", export='varrange')
+PIrelwidth_bt.fn <- function(a,b) {
+   ind <- (a-b)/varrange
+   return(ind)
+}
+PIrelwidth_bt <- clusterR(s_bt, overlay, args=list(fun=PIrelwidth_bt.fn),progress = "text", export='varrange')
 
 endCluster()
 
