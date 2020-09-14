@@ -183,8 +183,8 @@ pts.extcc$prop_t <- pts.extcc$prop ## TRANSFORM IF NEEDED
 attach(pts.extcc)
 rf_lm_adj <- lm(prop_t ~ trainpreds)
 detach(pts.extcc)
-
 pts.extcc$trainpredsadj <- predict(rf_lm_adj, newdata=pts.extcc)
+
 ##plot linear adjustment
  #x1 <-c(-100,0,100,10000,100000000)
  #y1 <-c(-100,0,100,10000,100000000)
@@ -235,25 +235,25 @@ PIrelwidth.fn <- function(a,b) {
 PIrelwidth <- clusterR(s, overlay, args=list(fun=PIrelwidth.fn),progress = "text",export='varrange')
 
 ## Back transformation workflow
-# bt.fn <- function(x) {
-#   ind <- (exp(x))-0.1 #If a backtransform is needed 10^(x) or exp(x) or ^2
-#   return(ind)
-# }
-# predh_bt <- clusterR(predh, calc, args=list(fun=bt.fn),progress='text')
-# predl_bt <- clusterR(predl, calc, args=list(fun=bt.fn),progress='text')
-# pred_bt <- clusterR(pred, calc, args=list(fun=bt.fn),progress='text')
-# s_bt <- stack(predh_bt,predl_bt)
-# PIwidth_bt.fn <- function(a,b) {
-#   ind <- a-b
-#   return(ind)
-# }
-# PIwidth_bt <- clusterR(s_bt, overlay, args=list(fun=PIwidth_bt.fn),progress = "text")
-# ## If transformed, use the following code for PI width prep steps
-# PIrelwidth_bt.fn <- function(a,b) {
-#   ind <- (a-b)/varrange
-#   return(ind)
-# }
-# PIrelwidth_bt <- clusterR(s_bt, overlay, args=list(fun=PIrelwidth_bt.fn),progress = "text", export='varrange')
+bt.fn <- function(x) {
+   ind <- (exp(x))-0.1 #If a backtransform is needed 10^(x) or exp(x) or ^2
+   return(ind)
+ }
+ predh_bt <- clusterR(predh, calc, args=list(fun=bt.fn),progress='text')
+ predl_bt <- clusterR(predl, calc, args=list(fun=bt.fn),progress='text')
+ pred_bt <- clusterR(pred, calc, args=list(fun=bt.fn),progress='text')
+ s_bt <- stack(predh_bt,predl_bt)
+ PIwidth_bt.fn <- function(a,b) {
+   ind <- a-b
+   return(ind)
+ }
+ PIwidth_bt <- clusterR(s_bt, overlay, args=list(fun=PIwidth_bt.fn),progress = "text")
+ ## If transformed, use the following code for PI width prep steps
+ PIrelwidth_bt.fn <- function(a,b) {
+   ind <- (a-b)/varrange
+   return(ind)
+ }
+ PIrelwidth_bt <- clusterR(s_bt, overlay, args=list(fun=PIrelwidth_bt.fn),progress = "text", export='varrange')
 
 endCluster()
 
@@ -261,18 +261,18 @@ endCluster()
 setwd(predfolder)
 
 ## Untransformed code block
-writeRaster(predlm, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
-writeRaster(predl, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_l.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
-writeRaster(predh, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_h.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
-writeRaster(PIrelwidth, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_relwidth.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
-writeRaster(PIwidth, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_width.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+#writeRaster(predlm, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+#writeRaster(predl, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_l.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+#writeRaster(predh, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_h.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+#writeRaster(PIrelwidth, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_relwidth.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+#writeRaster(PIwidth, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_width.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
 
-## Transformed code block
-# writeRaster(pred_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_bt_ART_SG100covs.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
-# writeRaster(predl_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_l_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
-# writeRaster(predh_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_h_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
-# writeRaster(PIwidth_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_width_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
-# writeRaster(PIrelwidth_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_relwidth_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+## Back-transformed code block
+ writeRaster(pred_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_bt_ART_SG100covs.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+ writeRaster(predl_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_l_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+ writeRaster(predh_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_h_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+ writeRaster(PIwidth_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_width_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+ writeRaster(PIrelwidth_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_relwidth_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
 
 
 
