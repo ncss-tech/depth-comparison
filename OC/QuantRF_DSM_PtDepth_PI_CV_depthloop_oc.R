@@ -134,8 +134,8 @@ pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decim
 
 
 ######## Loop to Train and Predict Properties for All Depths ########
-depths <- c(0,5,15,30,60,100,150) 
-#d <- 5 # if running or checking for one depth
+depths <- c(2.5,10,22.5,45,80,125) 
+#d <- 100 # if running or checking for one depth
 
 for(d in depths){
 pts.extc <- subset(pts.ext, as.numeric(pts.ext$hzn_top) <= d & as.numeric(pts.ext$hzn_bot) > d) # subset to chosen depth
@@ -150,7 +150,7 @@ ytrain <- c(as.matrix(pts.extcc[c("prop")]))
 
 ### transform property data if needed (oc, clay) ###
 #hist(ytrain) # examine distribution to determine transformation
-ytrain <- log(ytrain+0.1) # oc
+ytrain <- log(ytrain)+0.1 # oc
 #ytrain <- sqrt(ytrain) # clay
 #hist(ytrain) # check transformed distribution
 
@@ -224,7 +224,7 @@ setwd(predfolder)
 
 ### back transformation workflow 
 ####bt.fn <- function(x) {
-  ####ind <- (exp(x))-0.1 #If a backtransform is needed 10^(x) or exp(x) or ^2
+  ####ind <- exp(x)-0.1 #If a backtransform is needed 10^(x) or exp(x) or ^2
   ####return(ind)
 ####}
 ####predh_bt <- clusterR(predh, calc, args=list(fun=bt.fn),progress='text')
@@ -266,7 +266,7 @@ setwd(predfolder)
 pts.extcvm <- pts.extcc
 nfolds <- 10
 pts.extcvm$folds <- sample.int(nfolds,size =length(pts.extcvm[,1]),replace=T)
-pts.extcvm$prop_t <- pts.extcvm$prop # transform if needed else just create new version of prop
+pts.extcvm$prop_t <- log(pts.extcvm$prop)+0.1 # oc # transform if needed else just create new version of prop
 formulaStringCVm <- as.formula(paste('prop_t ~', paste(gsub(".tif","", cov.grids), collapse="+")))
 #for (g in seq(nfolds)){
 CV_factorRF <- function(g,pts.extcvm, formulaStringCVm){
@@ -296,19 +296,19 @@ snowfall::sfStop()
 pts.extpcv <- plyr::rbind.fill(pts.extpcv)
 pts.extpcv$pcvpred <- as.numeric(pts.extpcv$pcvpred)
 
-### PCV statistics
-cvp.RMSE <- sqrt(mean((pts.extpcv$prop_t - pts.extpcv$pcvpred)^2, na.rm=TRUE))
-cvp.Rsquared <- 1-var(pts.extpcv$prop_t - pts.extpcv$pcvpred, na.rm=TRUE)/var(pts.extpcv$prop_t, na.rm=TRUE)
+### PCV statistics - untransformed
+#cvp.RMSE <- sqrt(mean((pts.extpcv$prop_t - pts.extpcv$pcvpred)^2, na.rm=TRUE))
+#cvp.Rsquared <- 1-var(pts.extpcv$prop_t - pts.extpcv$pcvpred, na.rm=TRUE)/var(pts.extpcv$prop_t, na.rm=TRUE)
 
 ## Back transformed: create pcvpred_bt even if not tranformed for cv.depth function
-pts.extpcv$pcvpred_bt <- pts.extpcv$pcvpred ## ALWAYS update with backtransformation (if needed)
+pts.extpcv$pcvpred_bt <- exp(pts.extpcv$pcvpred)-0.1 #oc ## ALWAYS update with backtransformation (if needed)
 cvp.RMSE_bt <- sqrt(mean((pts.extpcv$prop - pts.extpcv$pcvpred_bt)^2, na.rm=TRUE))
 cvp.Rsquared_bt <- 1-var(pts.extpcv$prop - pts.extpcv$pcvpred_bt, na.rm=TRUE)/var(pts.extpcv$prop, na.rm=TRUE)
 
 ### RPI
-pts.extpcv$prop_bt <- pts.extpcv$prop_t # UPDATE: backtransform if necessary. Used for PICP and to characterize backtransformation bias
-pts.extpcv$pcvpredpre.025_bt <- pts.extpcv$pcvpredpre.025 # UPDATE: backtransform if necessary
-pts.extpcv$pcvpredpre.975_bt <- pts.extpcv$pcvpredpre.975 # UPDATE: backtransform if necessary
+pts.extpcv$prop_bt <- exp(pts.extpcv$prop_t)-0.1 # UPDATE: backtransform if necessary. Used for PICP and to characterize backtransformation bias
+pts.extpcv$pcvpredpre.025_bt <- exp(pts.extpcv$pcvpredpre.025)-0.1 # UPDATE: backtransform if necessary
+pts.extpcv$pcvpredpre.975_bt <- exp(pts.extpcv$pcvpredpre.975)-0.1 # UPDATE: backtransform if necessary
 pts.extpcv$abs.resid <- abs(pts.extpcv$prop - pts.extpcv$pcvpred_bt)
 pts.extpcv$RPI <- (pts.extpcv$pcvpredpre.975_bt - pts.extpcv$pcvpredpre.025_bt)/varrange
 plot(pts.extpcv$abs.resid~pts.extpcv$RPI) # Quick look at relationship
