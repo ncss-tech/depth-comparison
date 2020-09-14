@@ -134,8 +134,8 @@ pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decim
 
 
 ######## Loop to Train and Predict Properties for All Depths ########
-depths <- c(0,5,15,30,60,100,150) 
-#d <- 30 # if running or checking for one depth
+depths <- c(2.5,10,22.5,45,80,125) 
+#d <- 10 # if running or checking for one depth
 
 for(d in depths){
 pts.extc <- subset(pts.ext, as.numeric(pts.ext$hzn_top) <= d & as.numeric(pts.ext$hzn_bot) > d) # subset to chosen depth
@@ -153,6 +153,7 @@ varrange <- as.numeric(quantile(pts.extcc$prop, probs=c(0.975), na.rm=T)-quantil
 
 ##### build quantile Random Forest
 set.seed(915)
+#set.seed(NULL)
 ####Qsoiclass <- quantregForest(x=xtrain, y=ytrain, importance=TRUE, ntree=120, keep.forest=TRUE) # if dataset is ~>300, nthreads = cpus
 ####soiclass <- Qsoiclass
 ####class(soiclass) <- "randomForest"
@@ -299,11 +300,11 @@ PICP <- sum(ifelse(pts.extpcv$prop_bt <= pts.extpcv$pcvpredpre.975_bt & pts.extp
 ##if gRPI was created
 #CVdf <- data.frame(cvp.RMSE, cvp.Rsquared, cvp.RMSE_bt, cvp.Rsquared_bt,RPI.cvave,RPI.cvmed,gRPI.ave,gRPI.med,PICP,rel.abs.res.ave,rel.abs.res.med,BTbias.abs.max,BTbias.ave)
 ##if gRPI was not created
-CVdf <- data.frame(cvp.RMSE, cvp.Rsquared, cvp.RMSE_bt, cvp.Rsquared_bt,RPI.cvave,RPI.cvmed,PICP,rel.abs.res.ave,rel.abs.res.med,BTbias.abs.max,BTbias.ave)
+CVdf <- data.frame(cvp.RMSE, cvp.Rsquared, cvp.RMSE_bt, cvp.Rsquared_bt,RPI.cvave,RPI.cvmed,PICP,rel.abs.res.ave,rel.abs.res.med,BTbias.abs.max,BTbias.ave, nrow(pts.extcvm))
 ##if gRPI was created
 #names(CVdf) <- c("cvp.RMSE","cvp.Rsquared","cvp.RMSE_bt", "cvp.Rsquared_bt","RPI.CVave","RPI.CVmed","gRPI.ave","gRPI.med","PICP","rel.abs.res.ave","rel.abs.res.med","BTbias.abs.max","BTbias.ave")
 ##if gRPI was not created
-names(CVdf) <- c("cvp.RMSE","cvp.Rsquared","cvp.RMSE_bt", "cvp.Rsquared_bt","RPI.CVave","RPI.CVmed","PICP","rel.abs.res.ave","rel.abs.res.med","BTbias.abs.max","BTbias.ave")
+names(CVdf) <- c("cvp.RMSE","cvp.Rsquared","cvp.RMSE_bt", "cvp.Rsquared_bt","RPI.CVave","RPI.CVmed","PICP","rel.abs.res.ave","rel.abs.res.med","BTbias.abs.max","BTbias.ave", "obs.pts.extcvm")
 ## write table
 setwd(predfolder)
 write.table(CVdf, paste("PCVstats", prop, d, "cm_ptdepth_DC_UCRB.txt",sep="_"), sep = "\t", row.names = FALSE)
