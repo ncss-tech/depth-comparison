@@ -159,6 +159,7 @@ varrange <- as.numeric(quantile(pts.extcc$prop, probs=c(0.975), na.rm=T)-quantil
 
 ##### build quantile Random Forest
 set.seed(915)
+#set.seed(NULL)
 ####Qsoiclass <- quantregForest(x=xtrain, y=ytrain, importance=TRUE, ntree=120, keep.forest=TRUE) # if dataset is ~>300, nthreads = cpus
 ####soiclass <- Qsoiclass
 ####class(soiclass) <- "randomForest"
