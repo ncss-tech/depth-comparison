@@ -144,7 +144,7 @@ pts.pid <- unique(pts.pid)
 
 ######## Loop to train and predict properties for all depths ########
 depths <- c("0-5 cm","5-15 cm","15-30 cm","30-60 cm","60-100 cm","100-150 cm")
-d <- c("15-30 cm") #if running one depth
+#d <- c("15-30 cm") #if running one depth
 
 for(d in depths){
 pts.extcc <- data.frame(pid=pts.soilpr.spl$idcol, prop=pts.soilpr.spl$var.std[,d], stringsAsFactors = F) #change object as needed
@@ -170,21 +170,21 @@ hist(ytrain) # check transformed distribution
 varrange <- as.numeric(quantile(pts.extcc$prop, probs=c(0.975), na.rm=T)-quantile(pts.extcc$prop, probs=c(0.025),na.rm=T)) # For RPI
 
 ## Build quantile Random Forest
-set.seed(915)
+set.seed(123)
 #set.seed(NULL)
-Qsoiclass <- quantregForest(x=xtrain, y=ytrain, importance=TRUE, ntree=120, keep.forest=TRUE) # If dataset is ~>300: , nthreads = cpus)
-soiclass = randomForest(prop ~ ., data = pts.extcc, importance=TRUE, proximity=FALSE, ntree=100, keep.forest=TRUE)
-soiclass <- Qsoiclass
-class(soiclass) <- "randomForest"
-soiclass ## Get oob error
+####Qsoiclass <- quantregForest(x=xtrain, y=ytrain, importance=TRUE, ntree=120, keep.forest=TRUE) # If dataset is ~>300: , nthreads = cpus)
+####soiclass = randomForest(prop ~ ., data = pts.extcc, importance=TRUE, proximity=FALSE, ntree=100, keep.forest=TRUE)
+####soiclass <- Qsoiclass
+####class(soiclass) <- "randomForest"
+####soiclass ## Get oob error
 
 ## Linear Adjustment for bias
-pts.extcc$trainpreds <- predict(soiclass, newdata=xtrain)
-pts.extcc$prop_t <- pts.extcc$prop ## TRANSFORM IF NEEDED
-attach(pts.extcc)
-rf_lm_adj <- lm(prop_t ~ trainpreds)
-detach(pts.extcc)
-pts.extcc$trainpredsadj <- predict(rf_lm_adj, newdata=pts.extcc)
+####pts.extcc$trainpreds <- predict(soiclass, newdata=xtrain)
+####pts.extcc$prop_t <- pts.extcc$prop ## TRANSFORM IF NEEDED
+####attach(pts.extcc)
+####rf_lm_adj <- lm(prop_t ~ trainpreds)
+####detach(pts.extcc)
+####pts.extcc$trainpredsadj <- predict(rf_lm_adj, newdata=pts.extcc)
 
 ##plot linear adjustment
  #x1 <-c(-100,0,100,10000,100000000)
@@ -195,68 +195,68 @@ pts.extcc$trainpredsadj <- predict(rf_lm_adj, newdata=pts.extcc)
  #plot(ytrain~pts.extcc$trainpredsadj) #Fit plot
 # lines(x1,y1, col = 'red')#1:1 line
 
-varImpPlot(soiclass)# look at variable importance
+####varImpPlot(soiclass)# look at variable importance
 
 ##save models
-setwd(predfolder)
-saveRDS(Qsoiclass, paste("Qsoiclass_RFmodel", prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
-saveRDS(rf_lm_adj, paste("rflmadj_RFmodel",prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
+####setwd(predfolder)
+####saveRDS(Qsoiclass, paste("Qsoiclass_RFmodel", prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
+####saveRDS(rf_lm_adj, paste("rflmadj_RFmodel",prop, d, "cm_nasisSSURGO_ART_SG100.rds",sep="_"))
 
 ## Reference covariate rasters to use in prediction
-setwd(covfolder)
-rasterOptions(maxmemory = 1e+09,chunksize = 2e+08)# maxmemory = 1e+09,chunksize = 1e+08 for soilmonster
-rasters<-stack(cov.grids)
+####setwd(covfolder)
+####rasterOptions(maxmemory = 1e+09,chunksize = 2e+08)# maxmemory = 1e+09,chunksize = 1e+08 for soilmonster
+####rasters<-stack(cov.grids)
 
 
 ## Predict onto covariate grid
 setwd(testfolder)
 ## Parallelized predict
-beginCluster(cpus,type='SOCK')
-predl <- clusterR(rasters, predict, args=list(model=Qsoiclass,what=c(0.025)),progress="text")
-predh <- clusterR(rasters, predict, args=list(model=Qsoiclass,what=c(0.975)),progress="text")
-Sys.time()
-pred <- clusterR(rasters, predict, args=list(model=soiclass),progress="text")
-Sys.time()
-names(pred) <- "trainpreds"
+####beginCluster(cpus,type='SOCK')
+####predl <- clusterR(rasters, predict, args=list(model=Qsoiclass,what=c(0.025)),progress="text")
+####predh <- clusterR(rasters, predict, args=list(model=Qsoiclass,what=c(0.975)),progress="text")
+####Sys.time()
+####pred <- clusterR(rasters, predict, args=list(model=soiclass),progress="text")
+####Sys.time()
+####names(pred) <- "trainpreds"
 
 ## Linear Adjustment
-predlm <- clusterR(pred, predict, args=list(model=rf_lm_adj),progress="text")
+####predlm <- clusterR(pred, predict, args=list(model=rf_lm_adj),progress="text")
 ## Prediction Interval widths
-s <- stack(predh,predl)
-PIwidth.fn <- function(a,b) {
-  ind <- a-b
-  return(ind)
-}
-PIwidth <- clusterR(s, overlay, args=list(fun=PIwidth.fn),progress = "text")
+####s <- stack(predh,predl)
+####PIwidth.fn <- function(a,b) {
+ #### ind <- a-b
+####  return(ind)
+####}
+####PIwidth <- clusterR(s, overlay, args=list(fun=PIwidth.fn),progress = "text")
 ## Determine 95% interquantile range of original training data for horizons that include the depth being predicted
-PIrelwidth.fn <- function(a,b) {
-  ind <- (a-b)/varrange
-  return(ind)
-}
-PIrelwidth <- clusterR(s, overlay, args=list(fun=PIrelwidth.fn),progress = "text",export='varrange')
+####PIrelwidth.fn <- function(a,b) {
+####  ind <- (a-b)/varrange
+####  return(ind)
+####}
+####PIrelwidth <- clusterR(s, overlay, args=list(fun=PIrelwidth.fn),progress = "text",export='varrange')
 
 ## Back transformation workflow
-bt.fn <- function(x) {
-   ind <- (exp(x))-0.1 #If a backtransform is needed 10^(x) or exp(x) or ^2
-   return(ind)
- }
- predh_bt <- clusterR(predh, calc, args=list(fun=bt.fn),progress='text')
- predl_bt <- clusterR(predl, calc, args=list(fun=bt.fn),progress='text')
- pred_bt <- clusterR(pred, calc, args=list(fun=bt.fn),progress='text')
- s_bt <- stack(predh_bt,predl_bt)
- PIwidth_bt.fn <- function(a,b) {
-   ind <- a-b
-   return(ind)
- }
- PIwidth_bt <- clusterR(s_bt, overlay, args=list(fun=PIwidth_bt.fn),progress = "text")
+####bt.fn <- function(x) {
+ ####  ind <- (exp(x))-0.1 #If a backtransform is needed 10^(x) or exp(x) or ^2
+####   return(ind)
+#### }
+#### predh_bt <- clusterR(predh, calc, args=list(fun=bt.fn),progress='text')
+#### predl_bt <- clusterR(predl, calc, args=list(fun=bt.fn),progress='text')
+#### pred_bt <- clusterR(pred, calc, args=list(fun=bt.fn),progress='text')
+#### s_bt <- stack(predh_bt,predl_bt)
+#### PIwidth_bt.fn <- function(a,b) {
+####   ind <- a-b
+####   return(ind)
+#### }
+#### PIwidth_bt <- clusterR(s_bt, overlay, args=list(fun=PIwidth_bt.fn),progress = "text")
  ## If transformed, use the following code for PI width prep steps
- PIrelwidth_bt.fn <- function(a,b) {
-   ind <- (a-b)/varrange
-   return(ind)
- }
- PIrelwidth_bt <- clusterR(s_bt, overlay, args=list(fun=PIrelwidth_bt.fn),progress = "text", export='varrange')
+#### PIrelwidth_bt.fn <- function(a,b) {
+####   ind <- (a-b)/varrange
+####   return(ind)
+#### }
+#### PIrelwidth_bt <- clusterR(s_bt, overlay, args=list(fun=PIrelwidth_bt.fn),progress = "text", export='varrange')
 
-endCluster()
+####endCluster()
 
 ## Write predictions to new geotiff files
 setwd(predfolder)
@@ -269,11 +269,11 @@ setwd(predfolder)
 #writeRaster(PIwidth, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_width.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
 
 ## Back-transformed code block
- writeRaster(pred_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_bt_ART_SG100covs.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
- writeRaster(predl_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_l_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
- writeRaster(predh_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_h_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
- writeRaster(PIwidth_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_width_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
- writeRaster(PIrelwidth_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_relwidth_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+ ####writeRaster(pred_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_bt_ART_SG100covs.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+#### writeRaster(predl_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_l_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+#### writeRaster(predh_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_h_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+#### writeRaster(PIwidth_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_width_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
+#### writeRaster(PIrelwidth_bt, overwrite=TRUE,filename=paste(prop,d,"cm_2D_QRF_95PI_relwidth_bt.tif",sep="_"), options=c("COMPRESS=DEFLATE", "TFW=YES"), progress="text")
 
 
 
@@ -341,10 +341,10 @@ PICP <- sum(ifelse(pts.extpcv$prop_bt <= pts.extpcv$pcvpredpre.975_bt & pts.extp
 
 ## Summarize RPI in full raster prediction using sample for speed (tested against full average)
 #rpi values from cross validation vs summary of rendered map
-rpi_samp <- sampleRegular(PIrelwidth,size=200000,useGDAL=T) #take sample of whole raster, summarize values, estimate global average
-rpi_samp <- na.omit(rpi_samp)
-gRPI.ave <- mean(rpi_samp) #global RPI - estimating map RPI - lots of computing
-gRPI.med <- median(rpi_samp)
+####rpi_samp <- sampleRegular(PIrelwidth,size=200000,useGDAL=T) #take sample of whole raster, summarize values, estimate global average
+####rpi_samp <- na.omit(rpi_samp)
+####gRPI.ave <- mean(rpi_samp) #global RPI - estimating map RPI - lots of computing
+####gRPI.med <- median(rpi_samp)
 
 ##Create PCV table 
 ##if gRPI was created
