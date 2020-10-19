@@ -45,6 +45,9 @@ summary(site_sub)
 horizon_sub <- horizons(spc_access)[ ,c('pedon_key','labsampnum','hzn_top','hzn_bot','clay_tot_psa','silt_tot_psa','sand_tot_psa','ph_h2o','oc')]
 summary(horizon_sub)
 
+horizon_sub$test <- paste0(spc_access$pedon_key, spc_access$hzn_desgn, spc_access$hzn_top, spc_access$hzn_bot, sep = "-")
+horizon_sub <-horizon_sub[!duplicated(horizon_sub$test), ]
+
 ## merge site and horizon data frames by pedon key
 horz_site <- merge(horizon_sub, site_sub, by = "pedon_key", all=TRUE)
 str(horz_site)
@@ -121,14 +124,18 @@ pts.ext$pid <- pts.ext$pedon_key
 ## Create location IDs for duplicate removal step
 pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
 
+
+
 ## Combine datasets and remove NAs for spline
 ptspred.list <- gsub(".tif","", cov.grids)# Take .tif off of the grid list to just get the variable names
 ptspred.list <- c(ptspred.list,"prop","pid","top","bottom") #Add dependent variable
 pts.ext$top <- pts.ext$hzn_top
 pts.ext$bottom <- pts.ext$hzn_bot
+
 pts.extc <- pts.ext[c(ptspred.list)]## Or create a specific list of dependent variable and covariate names to use 
 pts.ext.com <- na.omit(pts.extc)# Remove any record with NA's (in any column - be careful)
 pts.ext.com$hzid <- paste(pts.ext.com$pid,pts.ext.com$top,sep="_")
+
 
 ## Run spline to create standard depth interval average
 pts.soilpr <- pts.ext.com
