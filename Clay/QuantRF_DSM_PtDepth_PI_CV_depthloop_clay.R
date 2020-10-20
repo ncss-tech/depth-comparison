@@ -50,6 +50,10 @@ horizons <- horizons(spc_access)[ , c('pedon_key', 'labsampnum', 'hzn_top', 'hzn
 str(horizons)
 summary(horizons)
 
+
+horizons$test <- paste0(spc_access$pedon_key, spc_access$hzn_desgn, spc_access$hzn_top, spc_access$hzn_bot, sep = "-")
+horizons <-horizons[!duplicated(horizons$test), ]
+
 ## merge site and horizon data frames by pedon key
 site_hzn <- merge(sites, horizons, by = "pedon_key", all=TRUE)
 str(site_hzn)
@@ -129,7 +133,7 @@ pts.ext$prop <- pts.ext$clay_tot_psa # UPDATE EVERY TIME with proper response fi
 prop <- "clay_tot_psa" # dependent variable
 
 ## create location IDs for extra duplicate removal step
-pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
+#####pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
 
 
 
@@ -139,8 +143,8 @@ depths <- c(2.5,10,22.5,45,80,125)
 
 for(d in depths){
 pts.extc <- subset(pts.ext, as.numeric(pts.ext$hzn_top) <= d & as.numeric(pts.ext$hzn_bot) > d) # subset to chosen depth
-pedonLocations <- unique(pts.extc$LocID) # if length differs from # of rows in pts, there are duplicates
-pts.extc <- subset(pts.extc, !duplicated(pts.extc[c("LocID")])) #removes duplicates
+#####pedonLocations <- unique(pts.extc$LocID) # if length differs from # of rows in pts, there are duplicates
+#####pts.extc <- subset(pts.extc, !duplicated(pts.extc[c("LocID")])) #removes duplicates
 ptspred.list <- gsub(".tif","", cov.grids) # take .tif off of the grid list to just get the variable names
 ptspred.list <- c(ptspred.list,"prop") # add dependent variable
 pts.extc <- pts.extc[c(ptspred.list)] ## or create a specific list of dependent variable and covariate names to use 

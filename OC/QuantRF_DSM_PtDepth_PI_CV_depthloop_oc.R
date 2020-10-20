@@ -30,12 +30,16 @@ covfolder <- "/home/tnaum/data/UCRB_Covariates"
 # suz
 predfolder <- "L:/methodology/predict"
 covfolder <- "L:/methodology/covariates"
+#Jess
+predfolder <- "E:/DSMFocus/Properties/Methodology/pt_depth_predict"
+covfolder <- "E:/DSMFocus/Properties/Methodology/covariates"
 
 
 
 ######## Prepare Property Data ########
 ## load Rdata file with lab data - soil profile collection
-load("L:/methodology/NCSS_Lab_Data_Mart_20180914.Rdata")
+#load("L:/methodology/NCSS_Lab_Data_Mart_20180914.Rdata")
+load("E:/DSMFocus/Properties/Methodology/R/NCSS_Lab_Data_Mart_20180914.Rdata")
 
 ## check it out
 aqp::rebuildSPC(spc_access)
@@ -49,6 +53,9 @@ summary(sites)
 horizons <- horizons(spc_access)[ , c('pedon_key', 'labsampnum', 'hzn_top', 'hzn_bot', 'clay_tot_psa', 'silt_tot_psa', 'sand_tot_psa', 'ph_h2o', 'oc')]
 str(horizons)
 summary(horizons)
+
+horizons$test <- paste0(spc_access$pedon_key, spc_access$hzn_desgn, spc_access$hzn_top, spc_access$hzn_bot, sep = "-")
+horizons <-horizons[!duplicated(horizons$test), ]
 
 ## merge site and horizon data frames by pedon key
 site_hzn <- merge(sites, horizons, by = "pedon_key", all=TRUE)
@@ -129,7 +136,7 @@ pts.ext$prop <- pts.ext$oc # UPDATE EVERY TIME with proper response field
 prop <- "oc" # dependent variable
 
 ## create location IDs for extra duplicate removal step
-pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
+#####pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
 
 
 
@@ -139,8 +146,8 @@ depths <- c(2.5,10,22.5,45,80,125)
 
 for(d in depths){
 pts.extc <- subset(pts.ext, as.numeric(pts.ext$hzn_top) <= d & as.numeric(pts.ext$hzn_bot) > d) # subset to chosen depth
-pedonLocations <- unique(pts.extc$LocID) # if length differs from # of rows in pts, there are duplicates
-pts.extc <- subset(pts.extc, !duplicated(pts.extc[c("LocID")])) #removes duplicates
+#####pedonLocations <- unique(pts.extc$LocID) # if length differs from # of rows in pts, there are duplicates
+#####pts.extc <- subset(pts.extc, !duplicated(pts.extc[c("LocID")])) #removes duplicates
 ptspred.list <- gsub(".tif","", cov.grids) # take .tif off of the grid list to just get the variable names
 ptspred.list <- c(ptspred.list,"prop") # add dependent variable
 pts.extc <- pts.extc[c(ptspred.list)] ## or create a specific list of dependent variable and covariate names to use 
