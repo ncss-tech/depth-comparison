@@ -122,7 +122,7 @@ prop <- "silt_tot_psa" ## Dependent variable
 ## Create pedon ids for spline
 pts.ext$pid <- pts.ext$pedon_key
 ## Create location IDs for duplicate removal step
-pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
+#####pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
 
 ## Combine datasets and remove NAs for spline
 ptspred.list <- gsub(".tif","", cov.grids)# Take .tif off of the grid list to just get the variable names

@@ -122,7 +122,7 @@ prop <- "oc" ## Dependent variable
 ## Create pedon ids for spline
 pts.ext$pid <- pts.ext$pedon_key
 ## Create location IDs for duplicate removal step
-pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
+#####pts.ext$LocID <- paste(pts.ext$longitude_decimal_degrees, pts.ext$latitude_decimal_degrees, sep = "")
 
 
 
@@ -177,7 +177,7 @@ hist(ytrain) # check transformed distribution
 varrange <- as.numeric(quantile(pts.extcc$prop, probs=c(0.975), na.rm=T)-quantile(pts.extcc$prop, probs=c(0.025),na.rm=T)) # For RPI
 
 ## Build quantile Random Forest
-set.seed(123)
+set.seed(915)
 #set.seed(NULL)
 ####Qsoiclass <- quantregForest(x=xtrain, y=ytrain, importance=TRUE, ntree=120, keep.forest=TRUE) # If dataset is ~>300: , nthreads = cpus)
 ####soiclass = randomForest(prop ~ ., data = pts.extcc, importance=TRUE, proximity=FALSE, ntree=100, keep.forest=TRUE)
