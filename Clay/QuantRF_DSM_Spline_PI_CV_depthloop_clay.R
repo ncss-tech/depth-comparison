@@ -45,6 +45,9 @@ summary(site_sub)
 horizon_sub <- horizons(spc_access)[ ,c('pedon_key','labsampnum','hzn_top','hzn_bot','clay_tot_psa','silt_tot_psa','sand_tot_psa','ph_h2o','oc')]
 summary(horizon_sub)
 
+horizon_sub$test <- paste0(spc_access$pedon_key, spc_access$hzn_desgn, spc_access$hzn_top, spc_access$hzn_bot, sep = "-")
+horizon_sub <-horizon_sub[!duplicated(horizon_sub$test), ]
+
 ## merge site and horizon data frames by pedon key
 horz_site <- merge(horizon_sub, site_sub, by = "pedon_key", all=TRUE)
 str(horz_site)

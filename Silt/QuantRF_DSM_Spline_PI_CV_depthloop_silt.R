@@ -50,6 +50,9 @@ horz_site <- merge(horizon_sub, site_sub, by = "pedon_key", all=TRUE)
 str(horz_site)
 summary(horz_site) #check for NAs
 
+horizon_sub$test <- paste0(spc_access$pedon_key, spc_access$hzn_desgn, spc_access$hzn_top, spc_access$hzn_bot, sep = "-")
+horizon_sub <-horizon_sub[!duplicated(horizon_sub$test), ]
+
 ## remove NAs from location
 pts <- horz_site %>% drop_na(latitude_decimal_degrees, hzn_top, hzn_bot) #remove NA locations
 summary(pts)
