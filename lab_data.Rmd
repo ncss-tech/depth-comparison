@@ -73,7 +73,7 @@ spc_access <- spc
 
 # save(ldm_access, spc_access, file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_20180914.RData")
 # close and open 64-bit R version
-load(file = "C:/Users/steph/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_20180914.RData")
+load(file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_20180914.RData")
 
 ```
 
@@ -210,6 +210,7 @@ s_mps2$depths <- row.names(s_mps2)
 # save(ldm, spc, s_sf, file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/LDM-compact_20200422.RData")
 load(file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/LDM-compact_20200422.RData")
 
+h_agg <- dplyr::group_by(h, pedon_key) %>% dplyr::summarize(n = length(layer_key), top = sum(hzn_top < 1), p = any(!is.na(ph_h2o)) & any(!is.na(clay_total))) %>% dplyr::ungroup() %>% dplyr::filter(n > 2 & top == 0 & p == TRUE)
 
 ```
 
