@@ -8,6 +8,10 @@ editor_options:
 ---
 
 
+```{r}
+setwd("C:/Users/stephen.roecker/OneDrive - USDA/data/kssl")
+```
+
 # LDM Access
 
 ```{r access}
@@ -18,7 +22,7 @@ library(RODBC)
 library(aqp)
 
 # KSSL access database can be downloaded from https://ncsslabdatamart.sc.egov.usda.gov/
-con <- odbcConnectAccess(access.file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_09142018.mdb")
+con <- odbcConnectAccess(access.file = "NCSS_Lab_Data_Mart_09142018.mdb")
 (access_names <- sqlTables(con))
 idx <- !grepl("MSys", access_names$TABLE_NAME)
 ldm_access <- lapply(access_names$TABLE_NAME[idx], function(x) sqlFetch(con , x, as.is = TRUE))
@@ -73,7 +77,7 @@ spc_access <- spc
 
 # save(ldm_access, spc_access, file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_20180914.RData")
 # close and open 64-bit R version
-load(file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/NCSS_Lab_Data_Mart_20180914.RData")
+load(file = "NCSS_Lab_Data_Mart_20180914.RData")
 
 ```
 
@@ -112,30 +116,6 @@ h <- merge(h,
            by = "labsampnum",
            all.x = TRUE
            )
-tex_abb <- c("")
-
-# conversions
-h <- within(h, {
-  hzn_top     = as.numeric(hzn_top)
-  texture_lab = tolower(texture_lab)
-  tex = NA
-  tex[texture_lab %in% "c"]    = 1
-  tex[texture_lab %in% "sic"]  = 2
-  tex[texture_lab %in% "sc"]   = 8
-  tex[texture_lab %in% "cl"]   = 7
-  tex[texture_lab %in% "sicl"] = 3
-  tex[texture_lab %in% "scl"]  = 9
-  tex[texture_lab %in% "l"]    = 11
-  tex[texture_lab %in% "sil"]  = 4
-  tex[texture_lab %in% c("sl", "vfsl", "fsl")] = 5
-  tex[texture_lab %in% c("ls", "vfls", "fls")] = 10
-  tex[texture_lab %in% "s"]    = 12
-  tex[texture_lab %in% "cos"]  = 13
-  tex[texture_lab %in% c("fs", "vfs")] = 15
-  ec_ptf = ECconversion1(ec = ec_predict_one_to_two, oc = estimated_organic_matter, clay = clay_total, texture = tex, soilsolution = "1:2", method = "FAO")
-  ec_ptf = ifelse(is.na(electrical_conductivity_satx), ec_ptf, electrical_conductivity_satx)
-})
-
 
 
 # site table
@@ -164,49 +144,6 @@ s_sf <- st_as_sf(s_sf,
                  )
 
 
-# # soil profile collection object
-# # optionally test for bad horizonation... flag, and remove
-#   if (rmHzErrors) {
-#     h.test <- plyr::ddply(h, 'pedon_key', function(d) {
-#       res <- aqp::hzDepthTests(top=d[['hzn_top']], bottom=d[['hzn_bot']])
-#       return(all(!res))
-#     })
-#     names(h.test)[2] <- "hz_logic_pass"
-# 
-#     # which are the good (valid) ones?
-#     good.ids <- as.character(h.test$pedon_key[which(h.test$hz_logic_pass)])
-#     bad.ids  <- as.character(h.test$pedon_key[which(! h.test$hz_logic_pass)])
-# 
-#     # keep the good ones
-#     h <- h[which(h$pedon_key %in% good.ids), ]
-# 
-#     # keep track of those components with horizonation errors
-#     if (length(bad.ids) > 0)
-#       assign('kssl.hz.problems', value=bad.ids, envir=soilDB.env)
-#   }
-
-library(aqp)
-spc <- h[h$pedon %in% s$pedon_key & !is.na(h$ec_predict_one_to_two), ]
-depths(spc) <- pedon_key ~ hzn_top + hzn_bot
-site(spc) <- length(s[s$pedon_key %in% h$pedon_key, ])
-
-
-# convert via pedotransfer functions
-library(soilassessment)
-
-
-
-s_mps <- mpspline2::mpspline(spc,
-                             var_name = "ec_predict_one_to_two", 
-                             lam = 0.8, 
-                             d = c(0, 30, 100, 150)
-                             )
-s_mps2 <- lapply(s_mps, function(x) cbind(pedon_key = x$pedon_key, ec = x$est_dcm))
-s_mps2 <- do.call("rbind", s_mps2)
-s_mps2 <- as.data.frame(s_mps2)
-s_mps2$depths <- row.names(s_mps2)
-
-
 # save(ldm, spc, s_sf, file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/LDM-compact_20200422.RData")
 load(file = "C:/Users/stephen.roecker/Nextcloud/data/ldm/LDM-compact_20200422.RData")
 
@@ -216,11 +153,242 @@ h_agg <- dplyr::group_by(h, pedon_key) %>% dplyr::summarize(n = length(layer_key
 
 
 
+# segment and spline
+
+```{r}
+
+# create intervals and point depths ----
+
+# intervals
+int <- as.integer(c(0, 5, 15, 30, 60, 100, 150))
+
+# point depths
+pnt <- {
+  cbind(int[-length(int)],
+        int[-1]
+  ) ->.;
+  as.integer(round(rowMeans(.)))
+}
+
+# point depth intervals
+pnt_int <- as.integer(sort(c(pnt, pnt + 1)))
+
+
+
+# check horizon logic and remove bad pedons ----
+spc <- spc_access
+spc$hzn_top <- round(spc$hzn_top)
+spc$hzn_bot <- round(spc$hzn_bot)
+idx <- checkHzDepthLogic(spc)
+spc <- spc[which(site(spc)$pedon_key %in% idx[idx$valid == TRUE, ]$pedon_key), ]
+
+spc$clay <- spc$clay_tot_psa
+spc$silt <- spc$silt_tot_psa
+spc$sand <- spc$sand_tot_psa
+spc$pH   <- spc$ph_h2o
+
+vars <- c("clay", "silt", "sand", "oc", "pH")
+
+
+
+# depth intervals ----
+# segment
+spc_int <- segment(spc, intervals = int) 
+
+# compute weighted averages
+h_int_wa <- horizons(spc_int) %>%
+  mutate(thk = hzn_bot - hzn_top) %>%
+  group_by(pedon_key, segment_id) %>%
+  summarize(
+    clay_wa = weighted.mean(clay_tot_psa, w = thk, na.rm = TRUE),
+    silt_wa = weighted.mean(silt_tot_psa, w = thk, na.rm = TRUE),
+    sand_wa = weighted.mean(sand_tot_psa, w = thk, na.rm = TRUE),
+    oc_wa   = weighted.mean(oc,           w = thk, na.rm = TRUE),
+    ph_wa   = log10(weighted.mean(1/10^-ph_h2o, w = thk, na.rm = TRUE))
+    ) %>%
+  ungroup() %>%
+  as.data.frame()
+vars <- c("clay_wa", "silt_wa", "sand_wa", "oc_wa", "ph_wa")
+h_int_wa_w <- reshape(data = h_int_wa, direction = "wide", 
+                  idvar = "pedon_key", 
+                  v.names = vars, 
+                  timevar = "segment_id"
+                  )
+attributes(h_int_wa_w)$reshapeWide <- NULL
+h_int_wa_w <- h_int_wa_w[!grepl(".NA$", names(h_int_wa_w))]
+
+
+
+# point depths ----
+# segment
+spc_pnt <- segment(spc, intervals = pnt_int)
+h <- horizons(spc_pnt)
+idx <- which(as.integer(h$hzn_top) %in% as.integer(pnt))
+h_pnt <- h[idx, c("pedon_key", "hzn_top", vars)]
+h_pnt$depth <- paste0("dp_", formatC(h_pnt$hzn_top, width = 3, flag = "0"), "_cm")
+
+h_pnt_w <- reshape(data = h_pnt[c("pedon_key", vars, "depth")], 
+                   direction = "wide", 
+                   idvar = "pedon_key", 
+                   v.names = vars, 
+                   timevar = "depth"
+                   )
+attributes(h_pnt_w)$reshapeWide <- NULL
+
+
+
+# spline intervals ----
+library(mpspline2)
+
+# fit mp splines to properties
+h_mps_l <- lapply(vars, function(x) {
+  
+  vars <- c("pedon_key", "hzn_top", "hzn_bot", x)
+  h2 <- horizons(spc)[vars]
+  h2 <- h2[which(complete.cases(h2)), ]
+
+  mps <- mpspline(
+    h2,
+    var_name = x, 
+    lam = 0.8, 
+    d   = c(0, 5, 15, 30, 60, 100, 150)
+    )
+})
+names(h_mps_l) <- vars
+# saveRDS(h_mps_l, file = "h_mps_l.rds")
+h_mps_l <- readRDS(file = "h_mps_l.rds")
+
+
+# tidy and extract mp splines
+h_mps_l_df <- lapply(vars, function(x, int = 1:6) {
+  
+  var_l <- s_mps_l[[x]]
+  
+  cat("tidying", x, "\n")
+  
+  # spline by depth interval
+  dcm_df <- lapply(var_l, function(x2) {
+    data.frame(pedon_key = x2$pedon_key, var = x2$est_dcm[int]) ->.;
+    names(.)[2] <- x
+    .$depths <- names(x2$est_dcm)[int]
+    return(.)
+  })
+  dcm_df <- do.call("rbind", dcm_df)
+  dcm_df$depths <- paste0("si_", dcm_df$depths)
+    
+  # tidyr::spread(mps_df, depths, var)
+  dcm_df <- reshape(dcm_df,
+                    direction = "wide",
+                    idvar   = "pedon_key",
+                    v.names = x,
+                    timevar = "depths"
+                    )
+  attributes(dcm_df)$reshapeWide <- NULL
+  
+  # spline by 1cm increments
+  cm_df <- lapply(var_l, function(x2) {
+    data.frame(pedon_key = x2$pedon_key, var = x2$est_1cm) ->.;
+    names(.)[2] <- x
+    .$depths <- as.integer(1:length(x2$est_1cm) - 1)
+    return(.)
+  })
+  cm_df <- do.call("rbind", cm_df)
+  cm_df <- cm_df[cm_df$depths %in% pnt, ]
+  cm_df$depths <- paste0("sp_", formatC(cm_df$depths, width = 3, flag = "0"), "_cm")
+  
+  # tidyr::spread(mps_df, depths, var)
+  cm_df <- reshape(cm_df,
+                    direction = "wide",
+                    idvar   = "pedon_key",
+                    v.names = x,
+                    timevar = "depths"
+                    )
+  attributes(cm_df)$reshapeWide <- NULL
+  
+  
+  df <- merge(dcm_df, cm_df, by = "pedon_key", all.x = TRUE)
+  
+  return(df)
+  })
+names(h_mps_l_df) <- vars
+# saveRDS(h_mps_l_df, file = "h_mps_l_df.rds")
+h_mps_l_df <- readRDS(file = "h_mps_l_df.rds")
+
+h_df <- h_mps_l_df$clay %>%
+  left_join(h_mps_l_df$silt, by = "pedon_key") %>%
+  left_join(h_mps_l_df$sand, by = "pedon_key") %>%
+  left_join(h_mps_l_df$oc,   by = "pedon_key") %>%
+  left_join(h_mps_l_df$pH,   by = "pedon_key") %>%
+  left_join(h_pnt_w,         by = "pedon_key") %>%
+  left_join(h_int_wa_w,      by = "pedon_key")
+
+h_df_long <- reshape(h_df, 
+        direction = "long",
+        timevar = "variable", times = names(h_df)[-1],
+        v.names = "value",    varying = names(h_df)[-1]
+        )
+
+h_df_long <- within(h_df_long, {
+  # parse method
+  method = ifelse(grepl("sp", variable), "spline point",      NA)
+  method = ifelse(grepl("dp", variable), "depth point",       method)
+  method = ifelse(grepl("si", variable), "spline interval",   method)
+  method = ifelse(grepl("wa", variable), "weighted interval", method)
+  
+  # parse depth interval
+  dep_int  = ifelse(grepl("5_cm|5$|002_cm",     variable), "000-005", NA)
+  dep_int  = ifelse(grepl("15_cm|15$|010_cm",   variable), "005-015", dep_int)
+  dep_int  = ifelse(grepl("30_cm|30$|022_cm",   variable), "015-030", dep_int)
+  dep_int  = ifelse(grepl("60_cm|60$|045_cm",   variable), "030-060", dep_int)
+  dep_int  = ifelse(grepl("100_cm|100$|080_cm", variable), "060-100", dep_int)
+  dep_int  = ifelse(grepl("150_cm|150$|125_cm", variable), "100-150", dep_int)
+  dep_int  = factor(dep_int, levels = c("000-005", "005-015", "015-030", "030-060", "060-100", "100-150"))
+  
+  # parse variable
+  var = sapply(variable, function(x) strsplit(x, "\\.|_")[[1]][1])
+})
+
+# save(h_df, h_df_long, file = "depth_comparisons.RData")
+
+```
+
+
+# comparison
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+
+load(file = "depth_comparisons.RData")
+
+aggregate(value ~ method, data = h_df_long[h_df_long$var == "clay" &  h_df_long$value > -1, ], function(x) round(summary(x)), na.action = na.pass)
+
+aggregate(value ~ method, data = h_df_long[h_df_long$var == "clay" &  h_df_long$value > -1, ], function(x) var(x, na.rm = TRUE))
+
+h_df_long %>%
+  filter(var == "clay" & value > 0 & pedon_key %in% s_ucrb$pedon_key) %>%
+  ggplot(aes(x = value, y = method)) +
+  geom_boxplot() +
+  facet_wrap(~ dep_int) +
+  ggtitle("clay")
+
+```
+
+
 # spatial
 
 ```{r spatial}
 
 library(sf)
+
+s <- site(spc_access)
+s_sf <- subset(s, complete.cases(latitude_decimal_degrees, longitude_decimal_degrees))
+s_sf <- st_as_sf(s_sf, 
+                 coords = c("longitude_decimal_degrees", "latitude_decimal_degrees"),
+                 crs = 4326
+                 )
+s_sf <- st_transform(s_sf, crs = 5070)
 
 # upper colorado river basin
 ucrb <- read_sf(dsn = "C:/Users/Stephen.Roecker/Nextcloud/projects/2020_methodology_comparison", layer = "CO_River_watershed_Meade_alb")
@@ -228,11 +396,11 @@ ucrb <- st_transform(ucrb, 5070)
 
 
 # sapolygon
-# ssa <- read_sf(dsn = "D:/geodata/soils/SSURGO_CONUS_FY19.gdb", layer = "SAPOLYGON", precision = 1)
-# ssa <- rmapshaper::ms_simplify(ssa)
+ssa <- read_sf(dsn = "D:/geodata/soils/SSURGO_CONUS_FY19.gdb", layer = "SAPOLYGON", precision = 1)
+ssa <- rmapshaper::ms_simplify(ssa)
 # save(ssa, file = "D:/geodata/soils/SSURGO_CONUS_FY19_SAPOLYGON.RData")
 load(file = "D:/geodata/soils/SSURGO_CONUS_FY19_SAPOLYGON.RData")
-ssa <- st_transform(ssa, 5070)
+ssa <- st_transform(ssa, crs = 5070)
 # ssa_b <- st_buffer(ssa, 10000)
 bb <- st_bbox(ssa)
 
@@ -322,7 +490,7 @@ s_sf <- st_as_sf(s,
 ```{r }
 
 idx <- st_intersects(s_sf, st_buffer(ucrb, 10000), sparse = FALSE)
-s_ucrb <- s_sf[idx, ]
+s_ucrb <- s_sf[idx[, 1], ]
 
 
 
