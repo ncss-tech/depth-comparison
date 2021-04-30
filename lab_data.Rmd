@@ -330,11 +330,17 @@ h_df_long <- reshape(h_df,
 
 h_df_long <- within(h_df_long, {
   # parse method
-  method = ifelse(grepl("sp", variable), "spline point",      NA)
-  method = ifelse(grepl("dp", variable), "depth point",       method)
-  method = ifelse(grepl("si", variable), "spline interval",   method)
-  method = ifelse(grepl("wa", variable), "weighted interval", method)
-  
+  method = ifelse(grepl("sp", variable), "point",    NA)
+  method = ifelse(grepl("dp", variable), "point",    method)
+  method = ifelse(grepl("si", variable), "interval", method)
+  method = ifelse(grepl("wa", variable), "interval", method)
+
+  # parse source
+  source = ifelse(grepl("sp", variable), "spline",   NA)
+  source = ifelse(grepl("dp", variable), "original", source)
+  source = ifelse(grepl("si", variable), "spline",   source)
+  source = ifelse(grepl("wa", variable), "original", source)
+
   # parse depth interval
   dep_int  = ifelse(grepl("5_cm|5$|002_cm",     variable), "000-005", NA)
   dep_int  = ifelse(grepl("15_cm|15$|010_cm",   variable), "005-015", dep_int)
@@ -348,6 +354,7 @@ h_df_long <- within(h_df_long, {
   var = sapply(variable, function(x) strsplit(x, "\\.|_")[[1]][1])
 })
 
+h_df_long$var <- tolower(h_df_long$var)
 # save(h_df, h_df_long, file = "depth_comparisons.RData")
 
 ```
@@ -359,19 +366,71 @@ h_df_long <- within(h_df_long, {
 
 library(dplyr)
 library(ggplot2)
+library(knitr)
 
 load(file = "depth_comparisons.RData")
 
-aggregate(value ~ method, data = h_df_long[h_df_long$var == "clay" &  h_df_long$value > -1, ], function(x) round(summary(x)), na.action = na.pass)
+test <- aggregate(value ~ var + method + source + dep_int, data = h_df_long[h_df_long$value > -0.1, ], function(x) {
+  # cbind(round(fivenum(x, na.rm = TRUE)), length(x)[1])
+round(summary(x)) 
+    },
+na.action = na.pass)
+
+test2 <- aggregate(value ~ var + method + source + dep_int, data = h_df_long[h_df_long$value > -0.1, ], function(x) sum(!is.na(x)),
+na.action = na.pass)
+
+test3 <- cbind(test[1:3], test$value, n = test2$value)
 
 aggregate(value ~ method, data = h_df_long[h_df_long$var == "clay" &  h_df_long$value > -1, ], function(x) var(x, na.rm = TRUE))
 
 h_df_long %>%
-  filter(var == "clay" & value > 0 & pedon_key %in% s_ucrb$pedon_key) %>%
-  ggplot(aes(x = value, y = method)) +
+  filter(var %in% c("ph") & value > 0 & pedon_key %in% s_ucrb$pedon_key) %>%
+  ggplot(aes(x = value, y = paste(method, source))) +
   geom_boxplot() +
-  facet_wrap(~ dep_int) +
+  # scale_x_log10() +
+  facet_grid(var ~ dep_int, scales = "free_x")
+
+test <- h_df_long %>%
+  select(- variable, -id) %>%
+  pivot_wider(names_from = c(source), values_fn = mean)
+
+test %>%
+  filter(var == "clay" & pedon_key %in% s_ucrb$pedon_key) %>%
+  ggplot(aes(x = spline, y = original)) +
+  geom_point() +
+  geom_abline() +
+  facet_grid(method ~ dep_int) +
+  ggtitle("Clay (%)")
+
+test %>%
+  filter(var == "oc" & pedon_key %in% s_ucrb$pedon_key) %>%
+  ggplot(aes(x = spline, y = original)) +
+  geom_point() +
+  geom_abline() +
+  facet_grid(method ~ dep_int, scales = "free_x") +
+  ggtitle("Organic Carbon (%)")
+
+
+test <- h_df_long %>%
+  select(- variable, -id) %>%
+  pivot_wider(names_from = c(method), values_fn = mean)
+
+test %>%
+  filter(var == "clay" & pedon_key %in% s_ucrb$pedon_key) %>%
+  ggplot(aes(x = interval, y = point)) +
+  geom_point() +
+  geom_abline() +
+  facet_grid(source ~ dep_int) +
   ggtitle("clay")
+
+test %>%
+  filter(var == "oc" & pedon_key %in% s_ucrb$pedon_key) %>%
+  ggplot(aes(x = interval, y = point)) +
+  geom_point() +
+  geom_abline() +
+  facet_wrap(source ~ dep_int, scales = "free") +
+  ggtitle("OC")
+
 
 ```
 
