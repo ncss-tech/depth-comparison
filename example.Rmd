@@ -15,40 +15,55 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r, warning=FALSE, message=FALSE}
 
 library(aqp)
-library(sp)
-library(GSIF)
+library(soilDB)
+library(mpspline2)
+library(collapse)
 
 ```
 
 
-This example dataset is from the GSIF R package help file for the mpspline().
+Example of mpspline R function.
 
 ```{r, message=FALSE}
 
-## sample profile from Nigeria:
-prof1 <- data.frame(id = "ISRIC:NG0017", 
-                    top = c(0, 18, 36, 65, 87, 127), 
-                    bot = c(18, 36, 65, 87, 127, 181),
-                    ORCDRC = c(18.4, 4.4, 3.6, 3.6, 3.2, 1.2),
-                    munsell = c("7.5YR3/2", "7.5YR4/4", "2.5YR5/6", "5YR5/8", "5YR5/4", "10YR7/3")
-                    )
-loc <- data.frame(lon = 3.90, lat = 7.50, id = "ISRIC:NG0017", FAO1988 = "LXp")
-prof1 <- merge(prof1, loc, by = "id", all.x = TRUE)
+## sample profile
+dat <- fetchKSSL("Miami")
+sub <- horizons(dat[28])[c("pedon_key", "hzn_top", "hzn_bot", "clay")]
+list(sub$clay, sum(sub$clay))
 
-depths(prof1) <- id ~ top + bot
-site(prof1) <- ~ lon + lat + FAO1988 
-coordinates(prof1) <- ~ lon + lat
-proj4string(prof1) <- CRS("+proj=longlat +datum=WGS84")
+spc <- sub
+depths(spc) <- pedon_key ~ hzn_top + hzn_bot
+
 
 # fit a spline:
-prof1_mps <- GSIF::mpspline(prof1, var.name="ORCDRC")
-prof1_mps$var.std            # depth interval (e.g. block mean)
-head(prof1_mps$var.1cm[, 1]) # depth slices   (e.g. point estimates)
+dep <- c(0, 25, 36, 61, 86, 112, 152)
+
+## if lam = 0 and spline depths = horizon depth, then the predicted spline values should be close/equal to the observed input values for each horizon
+{mpspline(sub, var_name = "clay", d = dep, lam = 0)$`38259`$est_dcm ->.;
+  list(values = round(., 1), sum = sum(.) |> round(1))
+}
+
+## if the low and high values are set, then the spline predictions are constrainted
+{mpspline(sub, var_name = "clay", d = dep, lam = 0, vlow = min(sub$clay), vhigh = max(sub$clay))$`38259`$est_dcm ->.;
+  list(values = round(., 1), sum = sum(.) |> round(1))
+}
+
+## if the default is lamda = 0.1, then the overall spline prediction sum equals the orignal values sum
+{mpspline(sub, var_name = "clay", d = dep)$`38259`$est_dcm ->.;
+  list(values = round(., 1), sum = sum(.) |> round(1))
+}
 
 
 # aqp depth slice approach
-prof1_slab  <- aqp::slab(prof1, id ~ ORCDRC, slab.structure = c(0, 5, 15, 30, 60, 100, 200), slab.fun = mean)
-prof1_slice <- aqp::slice(prof1, 0:200 ~ ORCDRC)
+prof1_slab  <- aqp::slab(spc, pedon_key ~ clay, slab.structure = c(0, 5, 15, 30, 60, 100, 200), slab.fun = mean)
+prof1_dice <- aqp::dice(spc, 0:200 ~ clay)
+
+prof_seg <- segment(spc, intervals = c(0, 5, 15, 30, 60, 100, 200)) |>
+  transform(thk = hzn_bot - hzn_top) |>
+  horizons()
+{collapse::fmean(prof_seg$clay, g =  prof_seg$segment_id, w = prof_seg$thk) |> round(1) ->.;
+  list(round(., 1), sum(.) |> round(1))
+  }
 
 ```
 
@@ -58,8 +73,9 @@ The below example confirms that the var.std estimates are the mean of the var.1c
 
 # 0-5 cm 
 # spline approach - depth interval
-prof1_mps$var.std[1]
-mean(prof1_mps$var.1cm[1:5])
+test <- mpspline(sub, var_name = "clay")
+test$`38259`$est_dcm
+mean(test$`38259`$est_1cm[1:5])
 
 ```
 
@@ -70,7 +86,7 @@ The below example confirms that the slab() depth interval estimate is the same a
 
 # slice approach - depth interval
 prof1_slab$value[1]
-mean(horizons(prof1_slice)$ORCDRC[1:5])
+mean(horizons(prof1_dice)$clay[1:5])
 
 ```
 
@@ -99,7 +115,7 @@ horizons(prof1_slice)$ORCDRC[idx]
 library(soilDB)
 library(aqp)
 library(mpspline2)
-library(ggplot)
+library(ggplot2)
 
 
 vars <- c("pedon_key", "hzn_top", "hzn_bot", "clay")
